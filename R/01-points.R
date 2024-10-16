@@ -114,7 +114,7 @@ p <- df_geocoded_dorling |>
   bind_cols(img = imgs) |> 
   mutate(img = paste0("https:", img)) |> 
   mutate(tooltip_text = sprintf(
-    "<img src='%s' height=25><br><b>%s</b> (#%d)<br>%d points<br>%d season%s", 
+    "<img src='%s' height=20><br><b>%s</b> (#%d)<br>%d points<br>%d season%s", 
       img, verein, pl, punkte, jahre,
       # "season" if only a single season, "seasons" if more than one
       ifelse(jahre > 1, "s", "")
@@ -122,7 +122,7 @@ p <- df_geocoded_dorling |>
   ggplot() +
   geom_sf(data = shp_de) +
   geom_sf_interactive(
-    aes(tooltip = tooltip_text),
+    aes(tooltip = tooltip_text, data_id = verein),
     color = "green", fill = "#121212", linewidth = 0.15) +
   geom_sf_text(
     data = ~subset(., pl <= 10),
@@ -152,45 +152,59 @@ p_title <- ggplot() +
     label = plot_title,
     family = "Roboto Condensed", size = 2.5,
     label.size = 0, label.color = NA, fill = NA,
-    hjust = 0, vjust = 1
+    hjust = 0, vjust = 1, label.padding = unit(0, "mm")
   ) +
   coord_cartesian(xlim = c(0, 2), ylim = c(0, 1.5), expand = FALSE) +
   theme_void()
 
 
-# Top 10 clubs table
+# Top 10 as a bar chart
 
 top10_clubs <- df |> 
   filter(pl <= 10) |> 
   select(pl, verein, punkte)
 
-top10_gt <- top10_clubs |>
-  rename(Rank = pl, Club = verein, `Total Points` = punkte) |>
-  gt() |>
-  tab_style(
-    style = list(
-      cell_text(weight = "bold")),
-    locations = cells_body(columns = Rank)
-  ) |>
-  tab_style(
-    style = cell_text(align = "center"),
-    locations = cells_body(columns = c(Rank, `Total Points`))
-  ) |> 
-  tab_options(
-    table.font.size = "7px",
-    table.font.names = "Roboto Condensed",
-    data_row.padding = 4)
+p_top10 <- top10_clubs |> 
+  mutate(
+    verein = fct_reorder(verein, -pl),
+    label = sprintf("**%d** %s", pl, verein),
+    label = str_replace(label, "^1.", "\b1."),
+    label = fct_reorder(label, -pl)) |> 
+  ggplot(aes(y = verein, x = punkte)) +
+  geom_col_interactive(
+    aes(data_id = verein),
+    fill = "#121212", width = 0.5) +
+  geom_text(
+    aes(x = 50, 
+        y = as.numeric(verein), label = verein),
+    hjust = 0, vjust = 0.5, family = "Roboto Condensed", color = "white", 
+    size = 1.5
+  ) +
+  geom_text(
+    aes(y = as.numeric(verein), label = punkte),
+    hjust = 1, vjust = 0.5, family = "Roboto Condensed Light", color = "white", 
+    size = 1.5, nudge_x = -30
+  ) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.1))) +
+  scale_y_discrete(labels = seq(10, 1, -1), expand = c(0, 0)) +
+  theme_void() +
+  theme(
+   # axis.text.y = element_markdown(hjust = 1)
+    axis.text.y = element_text(
+      hjust = 1, family = "Roboto Condensed", face = "bold",
+      margin = margin(r = 5), size = 6
+    ),
+    plot.margin = margin(l = 120)
+  )
+p_top10
 
 # Layout of the chart elements
 patchwork_design <- "
+12
+13
 1#
-12
-12
-13
-13
-13
 "
-p_combined <- p + p_title + top10_gt +
+p_combined <- p + p_title + p_top10 +
   plot_layout(design = patchwork_design) +
   theme(plot.margin = margin(l = 20))
 p_combined
