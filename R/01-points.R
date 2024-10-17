@@ -125,7 +125,7 @@ p <- df_geocoded_dorling |>
     aes(tooltip = tooltip_text, data_id = verein),
     color = "green", fill = "#121212", linewidth = 0.15) +
   geom_sf_text(
-    data = ~subset(., pl <= 10),
+    data = ~subset(., pl <= number_of_clubs_to_show),
     aes(label = pl),
     family = "Roboto Condensed", fontface = "bold", size = 2, color = "white"
   ) +
@@ -133,26 +133,28 @@ p <- df_geocoded_dorling |>
   theme_void()
 p 
 
+number_of_clubs <- nrow(df)
 
-plot_title = "
+plot_title = sprintf("
 <b style='font-size: 12pt'>A Map of All Clubs In Bundesliga History</b>
 <br>
+%d clubs have played in the Bundesliga from its inception in 1963 until the 
+2024-25 season.<br>
+This charts reveals how many points each club gained. 
+Hover over the dots and bars for more information.
 <br>
-59 clubs have played in the Bundesliga until the 2024-25 season.<br>
-Hover over the dots for more information.
 <br>
-<br>
-These are the top 10 clubs:
-"
+These are the clubs that gained the most points (3-points-rule):
+", number_of_clubs)
 
 p_title <- ggplot() +
   annotate(
-    "richtext",
+    GeomTextBox,
     x = 0, y = 1,
     label = plot_title,
     family = "Roboto Condensed", size = 2.5,
-    label.size = 0, label.color = NA, fill = NA,
-    hjust = 0, vjust = 1, label.padding = unit(0, "mm")
+    box.size = 0, box.color = NA, fill = NA, width = 1,
+    hjust = 0, vjust = 1, box.padding = unit(0, "mm")
   ) +
   coord_cartesian(xlim = c(0, 2), ylim = c(0, 1.5), expand = FALSE) +
   theme_void()
@@ -160,8 +162,10 @@ p_title <- ggplot() +
 
 # Top 10 as a bar chart
 
+number_of_clubs_to_show <- 18
+
 top10_clubs <- df |> 
-  filter(pl <= 10) |> 
+  filter(pl <= number_of_clubs_to_show) |> 
   select(pl, verein, punkte)
 
 p_top10 <- top10_clubs |> 
@@ -186,7 +190,10 @@ p_top10 <- top10_clubs |>
     size = 1.5, nudge_x = -30
   ) +
   scale_x_continuous(expand = expansion(mult = c(0, 0.1))) +
-  scale_y_discrete(labels = seq(10, 1, -1), expand = c(0, 0)) +
+  scale_y_discrete(labels = seq(number_of_clubs_to_show, 1, -1), expand = c(0, 0)) +
+  labs(
+    caption = "Source: Wikipedia, Visualization: Ansgar Wolsing"
+  ) +
   theme_void() +
   theme(
    # axis.text.y = element_markdown(hjust = 1)
@@ -194,14 +201,27 @@ p_top10 <- top10_clubs |>
       hjust = 1, family = "Roboto Condensed", face = "bold",
       margin = margin(r = 5), size = 6
     ),
-    plot.margin = margin(l = 120)
+    plot.margin = margin(l = 120),
+    plot.caption = element_text(size = 4, hjust = 0)
   )
 p_top10
 
 # Layout of the chart elements
 patchwork_design <- "
+1#
+12
+12
+12
 12
 13
+13
+13
+13
+13
+13
+13
+13
+1#
 1#
 "
 p_combined <- p + p_title + p_top10 +
@@ -217,7 +237,11 @@ padding: 3px;
 border-radius: 2px;
 lineheight: 50%"
 
-girafe(ggobj = p_combined, 
+interactive_chart <- girafe(ggobj = p_combined, 
        options = list(
          opts_tooltip(css = tooltip_css, opacity = 1),
          opts_sizing(width = 0.8)))
+interactive_chart
+
+htmltools::save_html(interactive_chart, file.path("plots/01-points.html"),
+                     libdir = "01-points-lib")
