@@ -177,7 +177,7 @@ p_top10 <- top10_clubs |>
   ggplot(aes(y = verein, x = punkte)) +
   geom_col_interactive(
     aes(data_id = verein),
-    fill = "#121212", width = 0.5) +
+    fill = "#121212", width = 0.6) +
   geom_text(
     aes(x = 50, 
         y = as.numeric(verein), label = verein),
