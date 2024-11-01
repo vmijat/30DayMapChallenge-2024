@@ -9,16 +9,6 @@ library(tidygeocoder)
 city_name <- "Cologne, Germany"
 city_shp <- getbb(city_name, format_out = "sf_polygon")
 
-# Query OSM for the River Rhine
-rhine_shp <- opq(bbox = c(1, 46, 9, 53)) %>%
-  add_osm_feature(key = "name", value = "Rhein") %>%
-  add_osm_feature(key = "waterway", value = "river") %>%
-  osmdata_sf()
-
-rhine_cgn_shp <- st_intersection(rhine_shp$osm_multilines, city_shp)
-rhine_cgn_shp <- st_crop(rhine_shp$osm_multilines, st_bbox(city_shp))
-
-
 # Read dataset of REWE markets
 rewe <- read_csv(file.path("data", "rewe-markets-cgn.csv"))
 
@@ -43,12 +33,13 @@ chunk_start <- seq(1, grid_length, chunk_size)
 chunk_end <- chunk_start + chunk_size - 1
 chunk_end[which.max(chunk_end)] <- pmin(chunk_end[which.max(chunk_end)], grid_length)
 
-foo <- map2(
+durations <- map2(
   chunk_start, chunk_end,
   function(x, y) {
     routing_table <- osrmTable(
       src = st_geometry(grid_points[x:y, ]),
-      dst = st_geometry(rewe)
+      dst = st_geometry(rewe),
+      osrm.profile = "foot"
     ) 
     # calculate the minimum per grid cell
     min_durations <- map_dbl(
@@ -58,7 +49,7 @@ foo <- map2(
   }
 )
 
-grid_points$time_to_rewe <- unlist(foo)
+grid_points$time_to_rewe <- unlist(durations)
 
 
 raster_template <- rast(
@@ -102,9 +93,18 @@ street_types <- list(
   small = c("residential", "living_street", "unclassified", "service", "footway")
 )
 
-bg_color <- "#888888"
+bg_color <- "#CFCFCF"
+isochrone_breaks <- c(0, 2, 5, 10, 15, 30, Inf)
+isochrone_labels <- c(
+  "Less than 2", "2-5", "5-10", "10-15", "15-30", "More than 30"
+)
+
 
 p <- ggplot() +
+  ggfx::with_shadow(
+    geom_sf(data = city_shp, fill = bg_color, color = bg_color, linewidth = 1),
+    colour = "#727272", x_offset = 12, y_offset = 12
+  ) +
   geom_sf(data = filter(highway_features_filtered, highway %in% street_types$small),
           linewidth = 0.05, col = "#434343") +
   geom_sf(data = filter(highway_features_filtered, highway %in% street_types$medium),
@@ -112,21 +112,16 @@ p <- ggplot() +
   geom_sf(data = filter(highway_features_filtered, highway %in% street_types$large),
           linewidth = 0.25, col = "#434343") +
   geom_contour_filled(
-    data = as.data.frame(raster_interpolation_masked, xy = TRUE) |> 
-      filter(mean <= 60),
+    data = as.data.frame(raster_interpolation_masked, xy = TRUE),
     aes(x = x, y = y, z = mean, fill = after_stat(level)),
-    breaks = c(0, 1, 2, 5, 10, 15, 20, 30, Inf),
-    alpha = 0.75) +
+    breaks = isochrone_breaks, alpha = 0.67) +
   geom_sf(data = city_shp, fill = "transparent", color = bg_color, linewidth = 1) +
-  # geom_sf(data = rhine_cgn_shp, col = "white", linewidth = 1.5) +
-  geom_sf(data = rewe, color = "white", size = 0.35) +
-  geom_sf(data = rewe, color = "#121212", size = 0.25) +
-  # geom_sf_text(data = rewe, aes(label = name), color = "#121212", size = 1.5) +
-  # scale_fill_viridis_d() +
-  scale_fill_brewer(palette = "Reds", direction = -1) +
+  geom_sf(data = rewe, color = "white", fill = "#636363", shape = 21, size = 1) +
+  scale_fill_brewer(
+    palette = "Reds", direction = -1, labels = isochrone_labels) +
   guides(fill = guide_legend()) +
   theme_void() +
   theme(
     plot.background = element_rect(color = bg_color, fill = bg_color)
   )
-ggsave(file.path("plots", "03-polygons.png"), width = 12, height = 10, dpi = 600)
+ggsave(file.path("plots", "03-polygons.png"), width = 12, height = 10, dpi = 300)
