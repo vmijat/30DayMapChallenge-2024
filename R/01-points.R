@@ -109,6 +109,10 @@ df_geocoded_dorling |>
   theme_void()
 
 
+number_of_clubs <- nrow(df)
+number_of_clubs_to_show <- 18
+
+
 p <- df_geocoded_dorling |> 
   arrange(-punkte) |> 
   bind_cols(img = imgs) |> 
@@ -132,8 +136,6 @@ p <- df_geocoded_dorling |>
   coord_sf(expand = FALSE) +
   theme_void()
 p 
-
-number_of_clubs <- nrow(df)
 
 plot_title = sprintf("
 <b style='font-size: 12pt'>A Map of All Clubs In Bundesliga History</b>
@@ -160,9 +162,7 @@ p_title <- ggplot() +
   theme_void()
 
 
-# Top 10 as a bar chart
-
-number_of_clubs_to_show <- 18
+# Top N as a bar chart
 
 top10_clubs <- df |> 
   filter(pl <= number_of_clubs_to_show) |> 
@@ -243,5 +243,7 @@ interactive_chart <- girafe(ggobj = p_combined,
          opts_sizing(width = 0.8)))
 interactive_chart
 
-htmltools::save_html(interactive_chart, file.path("plots/01-points.html"),
+plot_folder <- file.path("plots", "01-points")
+if (!dir.exists(file.path("plots", "01-points"))) dir.create(plot_folder)
+htmltools::save_html(interactive_chart, file.path("plots", "01-points", "01-points.html"),
                      libdir = "01-points-lib")
