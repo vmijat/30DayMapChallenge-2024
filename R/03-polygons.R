@@ -28,33 +28,14 @@ rewe <- st_as_sf(rewe, coords = c("long", "lat"), crs = st_crs(4326))
 st_crs(rewe)
 
 # Generate a grid of points within the city boundary 
-grid_points <- st_make_grid(city_shp, cellsize = 0.0033, what = "centers") %>%
+buffer <- 1000
+grid_points <- st_make_grid(city_shp, cellsize = 0.001, what = "centers") %>%
   st_sf() %>%
-  st_intersection(city_shp)
+  st_intersection(st_buffer(city_shp, dist = buffer))
 
-
-# Calculate travel time from a point to the supermarkets
-calculate_travel_time <- function(point, dest) {
-  result <- osrmTable(src = st_sf(point), dst = dest, measure = "duration", 
-                      osrm.profile = "foot")
-  # Extract the duration (in minutes) of the closest supermarket
-  min(result$duration[1, ], na.rm = TRUE)
-}
-
-calculate_travel_time(grid_points[1500, ], rewe[1, ])
-calculate_travel_time(grid_points[1, ], rewe)
 
 # Calculate walking times to the nearest supermarket for each grid point
-# Set TRUE to run the query
 path_time_to_rewe <- file.path("data", "time_to_rewe.rds")
-if (FALSE) {
-  grid_points$time_to_rewe <- map_dbl(
-    seq_len(nrow(grid_points)), 
-    function(x) calculate_travel_time(grid_points[x, ], rewe))
-  write_rds(grid_points$time_to_rewe, path_time_to_rewe)
-} else {
-  grid_points$time_to_rewe <- read_rds(path_time_to_rewe)
-}
 
 chunk_size <- 100
 grid_length <- nrow(grid_points)
@@ -72,29 +53,24 @@ foo <- map2(
     # calculate the minimum per grid cell
     min_durations <- map_dbl(
       seq_len(nrow(routing_table$durations)),
-      function(x) min(routing_table$durations[x]))
+      function(x) min(routing_table$durations[x,]))
     return(min_durations)
-    # routing_table
   }
 )
 
 grid_points$time_to_rewe <- unlist(foo)
-  
-ggplot(grid_points) +
-  geom_sf(aes(col = time_to_rewe))
+
 
 raster_template <- rast(
-  extent = st_bbox(city_shp), 
-  resolution = 0.001,
+  extent = st_bbox(st_buffer(city_shp, dist = buffer)), 
+  resolution = 0.0001,
   crs = st_crs(city_shp)$wkt
 )
-
-raster_interpolation <- terra::rasterize(
-  grid_points, raster_template, 
-  field = "time_to_rewe",
-  fun = mean 
-)
+raster_interpolation <- rasterize(grid_points, raster_template, field = "time_to_rewe", 
+                        fun = mean)
 summary(values(raster_interpolation))
+raster_interpolation_masked <- mask(raster_interpolation, vect(city_shp))
+
 
 
 ## Add street data -------------------------------------------------------------
@@ -126,11 +102,9 @@ street_types <- list(
   small = c("residential", "living_street", "unclassified", "service", "footway")
 )
 
-ggplot(as.data.frame(raster_interpolation, xy = TRUE)) +
-  geom_raster(aes(x, y, fill = mean))
+bg_color <- "#888888"
 
 p <- ggplot() +
-  geom_sf(data = city_shp, fill = "white", color = "white") +
   geom_sf(data = filter(highway_features_filtered, highway %in% street_types$small),
           linewidth = 0.05, col = "#434343") +
   geom_sf(data = filter(highway_features_filtered, highway %in% street_types$medium),
@@ -138,12 +112,13 @@ p <- ggplot() +
   geom_sf(data = filter(highway_features_filtered, highway %in% street_types$large),
           linewidth = 0.25, col = "#434343") +
   geom_contour_filled(
-    data = as.data.frame(raster_interpolation, xy = TRUE) |> 
+    data = as.data.frame(raster_interpolation_masked, xy = TRUE) |> 
       filter(mean <= 60),
     aes(x = x, y = y, z = mean, fill = after_stat(level)),
-    breaks = c(0, 2, 5, 10, 15, 20, 30),
+    breaks = c(0, 1, 2, 5, 10, 15, 20, 30, Inf),
     alpha = 0.75) +
-  # geom_sf(data = rhine_cgn_shp, col = "white", linewidth = 1) +
+  geom_sf(data = city_shp, fill = "transparent", color = bg_color, linewidth = 1) +
+  # geom_sf(data = rhine_cgn_shp, col = "white", linewidth = 1.5) +
   geom_sf(data = rewe, color = "white", size = 0.35) +
   geom_sf(data = rewe, color = "#121212", size = 0.25) +
   # geom_sf_text(data = rewe, aes(label = name), color = "#121212", size = 1.5) +
@@ -152,6 +127,6 @@ p <- ggplot() +
   guides(fill = guide_legend()) +
   theme_void() +
   theme(
-    plot.background = element_rect(color = "#888888", fill = "#888888")
+    plot.background = element_rect(color = bg_color, fill = bg_color)
   )
-ggsave(file.path("plots", "xx-rewe-5.png"), width = 12, height = 10, dpi = 600)
+ggsave(file.path("plots", "03-polygons.png"), width = 12, height = 10, dpi = 600)
