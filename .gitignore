@@ -32,3 +32,4 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 .DS_Store
+rosm.cache
