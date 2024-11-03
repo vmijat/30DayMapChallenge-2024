@@ -4,6 +4,7 @@ library(osmdata)
 library(osrm)
 library(terra)
 library(tidygeocoder)
+library(ggtext)
 
 # Get city shape
 city_name <- "Cologne, Germany"
@@ -23,31 +24,35 @@ grid_points <- st_make_grid(city_shp, cellsize = 0.001, what = "centers") %>%
   st_sf() %>%
   st_intersection(st_buffer(city_shp, dist = buffer))
 
-
 # Calculate walking times to the nearest supermarket for each grid point
 path_time_to_rewe <- file.path("data", "time_to_rewe.rds")
 
-chunk_size <- 100
-grid_length <- nrow(grid_points)
-chunk_start <- seq(1, grid_length, chunk_size)
-chunk_end <- chunk_start + chunk_size - 1
-chunk_end[which.max(chunk_end)] <- pmin(chunk_end[which.max(chunk_end)], grid_length)
-
-durations <- map2(
-  chunk_start, chunk_end,
-  function(x, y) {
-    routing_table <- osrmTable(
-      src = st_geometry(grid_points[x:y, ]),
-      dst = st_geometry(rewe),
-      osrm.profile = "foot"
-    ) 
-    # calculate the minimum per grid cell
-    min_durations <- map_dbl(
-      seq_len(nrow(routing_table$durations)),
-      function(x) min(routing_table$durations[x,]))
-    return(min_durations)
-  }
-)
+if (TRUE) {
+  chunk_size <- 100
+  grid_length <- nrow(grid_points)
+  chunk_start <- seq(1, grid_length, chunk_size)
+  chunk_end <- chunk_start + chunk_size - 1
+  chunk_end[which.max(chunk_end)] <- pmin(chunk_end[which.max(chunk_end)], grid_length)
+  
+  durations <- map2(
+    chunk_start, chunk_end,
+    function(x, y) {
+      routing_table <- osrmTable(
+        src = st_geometry(grid_points[x:y, ]),
+        dst = st_geometry(rewe),
+        osrm.profile = "foot"
+      ) 
+      # calculate the minimum per grid cell
+      min_durations <- map_dbl(
+        seq_len(nrow(routing_table$durations)),
+        function(x) min(routing_table$durations[x,]))
+      return(min_durations)
+    }
+  )
+  write_rds(durations, path_time_to_rewe)
+} else {
+  durations <- read_rds(path_time_to_rewe)
+}
 
 grid_points$time_to_rewe <- unlist(durations)
 
@@ -61,7 +66,6 @@ raster_interpolation <- rasterize(grid_points, raster_template, field = "time_to
                         fun = mean)
 summary(values(raster_interpolation))
 raster_interpolation_masked <- mask(raster_interpolation, vect(city_shp))
-
 
 
 ## Add street data -------------------------------------------------------------
@@ -119,9 +123,26 @@ p <- ggplot() +
   geom_sf(data = rewe, color = "white", fill = "#636363", shape = 21, size = 1) +
   scale_fill_brewer(
     palette = "Reds", direction = -1, labels = isochrone_labels) +
-  guides(fill = guide_legend()) +
-  theme_void() +
+  guides(fill = guide_legend(title = "Walk time (in minutes)", title.position = "top")) +
+  labs(
+    title = "Why do you call it Cologne when it could also be REWE City?",
+    subtitle = "Cologne is the home to 85 REWE supermarkets and the company's
+    headquarters. Each dot on the map shows the location of a REWE supermarket.
+    The coloured areas indicate how long it takes to get to the nearest REWE 
+    supermarket by foot.",
+    caption = "Source: REWE, OpenStreetMap contributors, ArcGIS.
+    Visualization: Ansgar Wolsing"
+  ) +
+  theme_void(base_family = "Roboto") +
   theme(
-    plot.background = element_rect(color = bg_color, fill = bg_color)
+    plot.background = element_rect(color = bg_color, fill = bg_color),
+    legend.position = "inside",
+    legend.position.inside = c(0.75, 0.9),
+    legend.direction = "horizontal",
+    plot.title = element_markdown(face = "bold", size = 14),
+    plot.title.position = "plot",
+    plot.subtitle = element_textbox(width = 1, lineheight = 1.15),
+    plot.caption = element_markdown(),
+    plot.margin = margin(rep(4, 4))
   )
-ggsave(file.path("plots", "03-polygons.png"), width = 12, height = 10, dpi = 300)
+ggsave(file.path("plots", "03-polygons.png"), width = 6.5, height = 7.5, dpi = 300)
