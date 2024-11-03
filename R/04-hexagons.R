@@ -76,6 +76,7 @@ df_maps_vote_share <- df_congress |>
     vote_share = candidatevotes / totalvotes
     ) |> 
   filter(party %in% c("DEMOCRAT", "REPUBLICAN")) |> 
+  mutate(party = str_to_title(party)) |> 
   select(GEOID, state, state_po, state_fips, district, party, vote_share) |> 
   group_by(GEOID) |> 
   slice_max(vote_share, n = 1) |> 
@@ -89,32 +90,37 @@ p <- df_maps_vote_share|>
   geom_sf(
     aes(fill = party, alpha = vote_share),
     linewidth = 0.1, color = "#f0efeb") +
-  scale_fill_manual(values = c("DEMOCRAT" = "#2054e3", "REPUBLICAN" = "#d91111")) +
-  scale_alpha_continuous(range = c(0.2, 1)) +
+  scale_fill_manual(values = c("Democrat" = "#2054e3", "Republican" = "#d91111")) +
+  scale_alpha_continuous(
+    range = c(0.2, 1), labels = scales::label_percent()) +
   guides(
     fill = guide_legend(
-      title.position = "top"),
+      title.position = "top", override.aes = list(size = 1)),
     alpha = guide_legend(
-      title.position = "top", nrow = 1, override.aes = list("fill" = "#121212"))) +
+      title.position = "top", nrow = 1, 
+      override.aes = list("fill" = "#121212", size = 1))) +
   labs(
     title = "Land does note vote",
     subtitle = "Party affiliation of the elected candidated in the 2022 Congressional
-    Election (House of Representatives).",
+    Election (House of Representatives). The first map shows the congressional 
+    districts in their natural shape. The second one shows them equally sized.",
     caption = "Source: Census.gov (via tigris R package), hexagon map: Daily Kos (https://dkel.ec/map).
-    Visualization: Ansgar Wolsing",
+Visualization: Ansgar Wolsing",
     fill = "Party\nof the winning candidate",
     alpha = "Vote share\nof the winning candidate"
   ) +
-  theme_void(base_family = "Roboto Condensed", base_size = 8) +
+  theme_void(base_family = "Roboto Condensed", base_size = 7) +
   theme(
     plot.background = element_rect(color = "#f0efeb", fill = "#f0efeb"),
     plot.title = element_text(size = 20, hjust = 0.5),
-    plot.subtitle = element_markdown(hjust = 0.5),
-    plot.caption = element_text(hjust = 0, margin = margin(t = 10)),
-    legend.position = "bottom"
+    plot.subtitle = element_textbox(hjust = 0.5, width = 0.8),
+    plot.caption = element_text(hjust = 0.5, margin = margin(t = 10)),
+    legend.position = "bottom",
+    legend.key.size = unit(2, "mm")
   )
- 
+p 
+
 p_anim <- p + transition_states(map_type)
 
-animate(p_anim, res = 200, width = 1200, height = 800, units = "px", bg = "#f0efeb")
+animate(p_anim, res = 200, width = 800, height = 800, units = "px", bg = "#f0efeb")
 anim_save(file.path("plots", "04-hexagons.gif"))
