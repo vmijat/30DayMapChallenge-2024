@@ -41,6 +41,10 @@ cd118_shifted_hexmap_combined <- cd118_shifted_basic |>
   filter(n == 2) |> 
   select(-n)
 
+# Transform the projection to Albers Equal Area Conic
+cd118_shifted_hexmap_combined <- cd118_shifted_hexmap_combined |> 
+  st_transform(crs = "EPSG:5070")
+
 cd118_shifted_hexmap_combined |> 
   ggplot() +
   geom_sf() +
@@ -59,6 +63,7 @@ cd118_shifted_hexmap_combined |>
   guides(fill = "none") +
   theme_void() +
   transition_states(map_type)
+
 
 # Election results US Congress
 df_congress <- read_csv(file.path("data", "1976-2022-house.csv"))
@@ -92,7 +97,7 @@ p <- df_maps_vote_share|>
     alpha = guide_legend(
       title.position = "top", nrow = 1, override.aes = list("fill" = "#121212"))) +
   labs(
-    title = "Land does note vote, people do",
+    title = "Land does note vote",
     subtitle = "Party affiliation of the elected candidated in the 2022 Congressional
     Election (House of Representatives).",
     caption = "Source: Census.gov (via tigris R package), hexagon map: Daily Kos (https://dkel.ec/map).
