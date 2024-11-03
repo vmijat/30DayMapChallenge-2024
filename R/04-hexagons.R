@@ -1,43 +1,38 @@
-
+library(tidyverse)
+library(ggtext)
+library(sf)
 library(tigris)
-library(leaflet)
+library(gganimate)
 
-# options(tigris_use_cache = TRUE)
+#' Daily Kos Hexmap for the 2022 congressional districts
+#' Download manually via https://docs.google.com/spreadsheets/d/13XkF59JKzvw4SeSq5mbgIFrJfYjK4amg9JoQE5e9grQ/edit?gid=1250379179#gid=1250379179
+hexmap_shp <- st_read(file.path("data", "HexCDv30wm", "HexCDv30wm.shp"))
+ggplot(hexmap_shp) + geom_sf()
 
-cd118 <- congressional_districts(cb = TRUE, resolution = '20m', year = 2022) |> 
+# Congressional districts shapefile
+cd118 <- congressional_districts(cb = TRUE, resolution = '20m', year = 2022) 
+st_crs(cd118)
+
+# Shift Alaska and Hawaii
+cd118_shifted <- cd118 |> 
   shift_geometry()
 
-leaflet(cd118) %>%
-  addTiles() %>%
-  addPolygons()
-
-
-
-library(sf)
-library(tidyverse)
-library(gganimate)
-library(ggtext)
-
-# Daily Kos Hexmap for the 2022 congressional districts
-hexmap_shp <- st_read(file.path("data", "HexCDv30", "HexCDv30.shp"))
-
-st_crs(cd118)
+st_crs(cd118_shifted)
 st_crs(hexmap_shp)
 
-# Transform hexmap to the same projection as the congressional district map
-hexmap_shp <- st_transform(hexmap_shp, crs = st_crs(cd118))
+# Transform congressional district map to the same projection as the hexmap
+# hexmap_shp <- st_transform(hexmap_shp, crs = st_crs(cd118))
+# cd118 <- st_transform(cd118, crs = st_crs(hexmap_shp))
+cd118_shifted <- st_transform(cd118_shifted, crs = st_crs(hexmap_shp))
+ggplot(hexmap_shp) + geom_sf()
+ggplot(cd118_shifted) + geom_sf()
 
-ggplot() +
-  geom_sf(data = cd118)
-
-ggplot() +
-  geom_sf(data = hexmap_shp)
 
 
 # Combine the datasets (basic version)
-cd118_basic <- select(cd118, GEOID, geometry)
+cd118_shifted_basic <- select(cd118_shifted, GEOID, geometry)
 hexmap_shp_basic <- select(hexmap_shp, GEOID, geometry)
-cd118_hexmap_combined <- cd118_basic |> 
+cd118_shifted_hexmap_combined <- cd118_shifted_basic |> 
   mutate(map_type = "map") |> 
   bind_rows(mutate(hexmap_shp_basic, map_type = "hexmap")) |> 
   mutate(map_type = factor(map_type, levels = c("map", "hexmap"))) |> 
@@ -46,35 +41,24 @@ cd118_hexmap_combined <- cd118_basic |>
   filter(n == 2) |> 
   select(-n)
 
-cd118_hexmap_combined |> 
+cd118_shifted_hexmap_combined |> 
   ggplot() +
   geom_sf() +
   facet_wrap(vars(map_type))
 
-cd118_hexmap_combined |> 
+# Check if there are any districts missing
+cd118_shifted_hexmap_combined |> 
   st_drop_geometry() |> 
   count(GEOID) |> 
   arrange(n) |> 
   filter(n == 1)
 
-library(gganimate)
-
-cd118_hexmap_combined |> 
+cd118_shifted_hexmap_combined |> 
   ggplot() +
   geom_sf(aes(fill = str_sub(GEOID, 1, 2))) +
   guides(fill = "none") +
   theme_void() +
   transition_states(map_type)
-
-
-cd118_hexmap_combined |> 
-  filter(str_detect(GEOID, "^01")) |> 
-  ggplot() +
-  geom_sf(aes(fill = GEOID)) +
-  guides(fill = "none") +
-  theme_void() +
-  transition_states(map_type)
-
 
 # Election results US Congress
 df_congress <- read_csv(file.path("data", "1976-2022-house.csv"))
@@ -91,9 +75,9 @@ df_maps_vote_share <- df_congress |>
   group_by(GEOID) |> 
   slice_max(vote_share, n = 1) |> 
   ungroup() |> 
-  inner_join(cd118_hexmap_combined, by = "GEOID") |>
+  inner_join(cd118_shifted_hexmap_combined, by = "GEOID") |>
   st_as_sf()
-
+st_crs(df_maps_vote_share)
 
 p <- df_maps_vote_share|> 
   ggplot() +
@@ -116,14 +100,14 @@ p <- df_maps_vote_share|>
     fill = "Party\nof the winning candidate",
     alpha = "Vote share\nof the winning candidate"
   ) +
-  theme_void(base_family = "Roboto Condensed") +
+  theme_void(base_family = "Roboto Condensed", base_size = 8) +
   theme(
     plot.background = element_rect(color = "#f0efeb", fill = "#f0efeb"),
     plot.title = element_text(size = 20, hjust = 0.5),
     plot.subtitle = element_markdown(hjust = 0.5),
+    plot.caption = element_text(hjust = 0, margin = margin(t = 10)),
     legend.position = "bottom"
-  ) # +
-  # facet_wrap(vars(map_type))
+  )
  
 p_anim <- p + transition_states(map_type)
 
