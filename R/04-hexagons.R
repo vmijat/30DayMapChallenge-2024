@@ -122,5 +122,11 @@ p
 
 p_anim <- p + transition_states(map_type)
 
+# GIF output
 animate(p_anim, res = 200, width = 800, height = 800, units = "px", bg = "#f0efeb")
 anim_save(file.path("plots", "04-hexagons.gif"))
+
+# Video
+animate(p_anim, res = 200, width = 800, height = 800, units = "px", bg = "#f0efeb",
+        renderer = ffmpeg_renderer(format = "mp4"))
+anim_save(file.path("plots", "04-hexagons.mp4"))
