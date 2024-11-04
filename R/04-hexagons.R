@@ -100,7 +100,7 @@ p <- df_maps_vote_share|>
       title.position = "top", nrow = 1, 
       override.aes = list("fill" = "#121212", size = 1))) +
   labs(
-    title = "Land does note vote",
+    title = "Land does not vote",
     subtitle = "Party affiliation of the elected candidated in the 2022 Congressional
     Election (House of Representatives). The first map shows the congressional 
     districts in their natural shape. The second one shows them equally sized.",
