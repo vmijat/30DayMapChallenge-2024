@@ -101,8 +101,8 @@ p <- df_maps_vote_share|>
       override.aes = list("fill" = "#121212", size = 1))) +
   labs(
     title = "Land does not vote",
-    subtitle = "Party affiliation of the elected candidated in the 2022 Congressional
-    Election (House of Representatives). The first map shows the congressional 
+    subtitle = "Party affiliation of the elected candidates in the 2022 House of Representatives
+    Election. The first map shows the congressional 
     districts in their natural shape. The second one shows them equally sized.",
     caption = "Source: Census.gov (via tigris R package), hexagon map: Daily Kos (https://dkel.ec/map).
 Visualization: Ansgar Wolsing",
