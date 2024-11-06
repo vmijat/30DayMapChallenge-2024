@@ -58,7 +58,7 @@ p <- ghsl_df |>
   annotate(
     "text",
     x = st_bbox(bbox_sf)$xmin + 2000, y = st_bbox(bbox_sf)$ymax - 26000,
-    label = "Built-up height at the Belgian and Dutch coast",
+    label = "Building height on the Belgian and Dutch coasts",
     family = "Fira Sans SemiBold", hjust = 0, size = unit(7, "pt")
   ) +
   annotate(
