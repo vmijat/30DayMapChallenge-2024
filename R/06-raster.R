@@ -3,6 +3,7 @@ library(sf)
 library(ggplot2)
 library(dplyr)
 library(ggspatial)
+library(osmdata)
 
 data_path <- file.path("data", "GHSL")
 
@@ -37,16 +38,12 @@ bbox_sf <- st_transform(bbox_sf, crs = raster_crs)
 
 ghsl_cropped <- crop(ghsl_raster, bbox_sf)
 
-ghsl_df <- as.data.frame(ghsl_cropped, xy = TRUE, na.rm = TRUE) 
-
-# ghsl_df <- as.data.frame(ghsl_cropped, xy = TRUE, na.rm = TRUE) |> 
-#   st_as_sf(coords = c("x", "y"), crs = crs(ghsl_raster))
-
-
+ghsl_df <- as.data.frame(ghsl_cropped, xy = TRUE, na.rm = TRUE)
+colnames(ghsl_df) <- c("x", "y", "height")
 str(ghsl_df)
 
 ghsl_df |> 
-  mutate(height = GHS_BUILT_H_ANBH_E2018_GLOBE_R2023A_54009_100_V1_0_R3_C19) |> 
+  mutate(height = height) |> 
   filter(height > 0) |> 
   ggplot() +
   annotation_map_tile(type = "cartolight", zoom = 11) +
@@ -65,6 +62,47 @@ ghsl_df |>
   coord_sf(crs = crs(ghsl_raster))  
 
 
+shp_be <- giscoR::gisco_get_countries(country = "Belgium", resolution = "1")
+shp_be_cropped <- shp_be |> 
+  st_crop(bbox)
+
+contour_breaks <- c(0, 0.1, 5, 10, 15, 20, 25, 30, Inf)
+
+ghsl_df_masked_be <- mask(
+  ghsl_cropped,
+  st_transform(shp_be_cropped, crs = raster_crs),
+  inverse = FALSE) |> 
+  as.data.frame(xy = TRUE, na.rm = TRUE)
+colnames(ghsl_df_masked_be) <- c("x", "y", "height")
+
+# With contours
+ghsl_df |> 
+  mutate(height = height) |> 
+  ggplot() +
+  annotation_map_tile(type = "cartolight", zoom = 11) +
+  geom_contour_filled(
+    aes(x, y, z = height,
+        # set alpha to 0 for lowest level # CHECK
+        alpha = ifelse(after_stat(level_low) == 0, 0, 0.8)
+        ),
+    color = "white", linewidth = 0.025
+  ) +
+  scale_fill_viridis_d(
+    option = "viridis", na.value = "grey",
+    breaks = contour_breaks) +
+  scale_alpha_identity() +
+  theme_void() +
+  labs(
+    fill = "Height (meters)",
+    x = "Longitude",
+    y = "Latitude"
+  ) +
+  coord_sf(
+    crs = crs(ghsl_raster), expand = FALSE)  
+
+ggsave(file.path("plots", "06-raster.png"), width = 6, height = 6)
+
+## ---
 
 town_name <- "Knokke-Heist, Belgium"
 town_shp <- getbb(town_name, format_out = "sf_polygon")
@@ -88,7 +126,7 @@ masked_raster <- mask(ghsl_cropped, mask_vect)
 ghsl_masked_df <- as.data.frame(masked_raster, xy = TRUE, na.rm = TRUE) 
 
 ghsl_masked_df |> 
-  mutate(height = GHS_BUILT_H_ANBH_E2018_GLOBE_R2023A_54009_100_V1_0_R3_C19) |> 
+  mutate(height = height) |> 
   filter(height > 0) |> 
   ggplot() +
   annotation_map_tile(type = "cartolight", zoom = 11) +
