@@ -3,144 +3,97 @@ library(sf)
 library(ggplot2)
 library(dplyr)
 library(ggspatial)
-library(osmdata)
+library(purrr)
+library(ggtext)
 
 data_path <- file.path("data", "GHSL")
 
 #' Manually download the raster data from 
 #' https://human-settlement.emergency.copernicus.eu/download.php?ds=builtH
 
-ghsl_raster_path <- file.path("GHS_BUILT_H_ANBH_E2018_GLOBE_R2023A_54009_100_V1_0_R3_C19", 
-                              "GHS_BUILT_H_ANBH_E2018_GLOBE_R2023A_54009_100_V1_0_R3_C19.tif")
-ghsl_raster <- rast(file.path(data_path, ghsl_raster_path))
+ghsl_raster_paths <- c(
+  file.path("GHS_BUILT_H_ANBH_E2018_GLOBE_R2023A_54009_100_V1_0_R3_C19", 
+            "GHS_BUILT_H_ANBH_E2018_GLOBE_R2023A_54009_100_V1_0_R3_C19.tif"),
+  file.path("GHS_BUILT_H_ANBH_E2018_GLOBE_R2023A_54009_100_V1_0_R4_C19", 
+            "GHS_BUILT_H_ANBH_E2018_GLOBE_R2023A_54009_100_V1_0_R4_C19.tif")
+)
+ghsl_rasters <- map(file.path(data_path, ghsl_raster_paths), rast) 
+ghsl_raster_merged <- merge(ghsl_rasters[[1]], ghsl_rasters[[2]])
+raster_crs <- crs(ghsl_raster_merged)
 
-raster_crs <- crs(ghsl_raster)
-
-st_bbox(ghsl_raster) |> 
+st_bbox(ghsl_raster_merged) |> 
   st_as_sfc() |> 
   st_transform(crs = "EPSG:4326")
 
 # Define a bounding box for an area of interest
-
-# xmin      ymin      xmax      ymax 
-# 3.370794 51.343462  3.448647 51.391638 
-
-bbox <- st_bbox(c(xmin = 3.15, xmax = 3.5, ymin = 51.27, ymax = 51.4), 
+bbox <- st_bbox(c(xmin = 2.5, xmax = 4.4, ymin = 50.9, ymax = 52.5), 
                 crs = "EPSG:4326")
-bbox <- st_bbox(c(xmin = 2.72, xmax = 3.5, ymin = 51.2, ymax = 51.4), 
-                crs = "EPSG:4326")
-# bbox <- st_bbox(c(xmin = 0.35, xmax = 0.5, ymin = 52.7, ymax = 52.8), 
-#                 crs = "EPSG:4326")
-bbox_sf <- st_as_sfc(bbox)
+bbox_sf <- st_transform(st_as_sfc(bbox), crs = raster_crs)
 
-# Optionally, convert to the same coordinate reference system as the raster
-bbox_sf <- st_transform(bbox_sf, crs = raster_crs)
+# Aspect ratio of bounding box
+aspect_ratio <- abs(bbox$xmax - bbox$xmin) / abs(bbox$ymax - bbox$ymin)
 
-ghsl_cropped <- crop(ghsl_raster, bbox_sf)
-
+ghsl_cropped <- crop(ghsl_raster_merged, bbox_sf)
 ghsl_df <- as.data.frame(ghsl_cropped, xy = TRUE, na.rm = TRUE)
 colnames(ghsl_df) <- c("x", "y", "height")
 str(ghsl_df)
 
-ghsl_df |> 
-  mutate(height = height) |> 
+contour_breaks <- c(0, 0.1, 5, 10, 15, 20, 25, 30, 50, Inf)
+ghsl_df$height_cat <- cut(ghsl_df$height, breaks = contour_breaks, right = FALSE)
+table(ghsl_df$height_cat, useNA = "ifany")
+  
+p <- ghsl_df |> 
   filter(height > 0) |> 
   ggplot() +
-  annotation_map_tile(type = "cartolight", zoom = 11) +
+  annotation_map_tile(type = "cartolight", zoom = 3) +
+  annotation_north_arrow(
+    height = unit(0.5, "cm"), width = unit(0.5, "cm"), location = "bl",
+    pad_y = unit(2.5, "cm"), style = north_arrow_fancy_orienteering(
+      text_family = "Fira Sans"
+    )
+  ) +
   geom_tile(
     aes(x, y, fill = height),
-    alpha = 0.7) +
+    alpha = 0.85) +
+  annotate(
+    "text",
+    x = st_bbox(bbox_sf)$xmin + 2000, y = st_bbox(bbox_sf)$ymax - 26000,
+    label = "Built-up height at the Belgian and Dutch coast",
+    family = "Fira Sans SemiBold", hjust = 0, size = unit(7, "pt")
+  ) +
+  annotate(
+    "text",
+    x = st_bbox(bbox_sf)$xmin + 2000, y = st_bbox(bbox_sf)$ymax - 33000,
+    label = "Average of the Net Building Height in a 100 m grid",
+    family = "Fira Sans", hjust = 0, size = unit(4.5, "pt")
+  ) +
   scale_fill_viridis_c(
-    option = "viridis", na.value = "grey" #, transform = "pseudo_log"
+    option = "A", na.value = "grey"
     ) +
-  theme_void() +
   labs(
-    fill = "Height (meters)",
+    fill = "Average height (meters)",
     x = "Longitude",
-    y = "Latitude"
+    y = "Latitude",
+    caption = "<span style='font-family:\"Fira Sans SemiBold\"'>Source:</span>
+    Pesaresi, Martino; Politis, Panagiotis (2023): 
+    GHS-BUILT-S R2023A - GHS built-up surface grid, derived from
+    Sentinel2 composite and Landsat, multitemporal (1975-2030).
+    European Commission, Joint Research Centre. Base map: CARTO.
+    <span style='font-family:\"Fira Sans SemiBold\"'>Visualization:</span> Ansgar Wolsing"
   ) +
-  coord_sf(crs = crs(ghsl_raster))  
-
-
-shp_be <- giscoR::gisco_get_countries(country = "Belgium", resolution = "1")
-shp_be_cropped <- shp_be |> 
-  st_crop(bbox)
-
-contour_breaks <- c(0, 0.1, 5, 10, 15, 20, 25, 30, Inf)
-
-ghsl_df_masked_be <- mask(
-  ghsl_cropped,
-  st_transform(shp_be_cropped, crs = raster_crs),
-  inverse = FALSE) |> 
-  as.data.frame(xy = TRUE, na.rm = TRUE)
-colnames(ghsl_df_masked_be) <- c("x", "y", "height")
-
-# With contours
-ghsl_df |> 
-  mutate(height = height) |> 
-  ggplot() +
-  annotation_map_tile(type = "cartolight", zoom = 11) +
-  geom_contour_filled(
-    aes(x, y, z = height,
-        # set alpha to 0 for lowest level # CHECK
-        alpha = ifelse(after_stat(level_low) == 0, 0, 0.8)
-        ),
-    color = "white", linewidth = 0.025
-  ) +
-  scale_fill_viridis_d(
-    option = "viridis", na.value = "grey",
-    breaks = contour_breaks) +
-  scale_alpha_identity() +
-  theme_void() +
-  labs(
-    fill = "Height (meters)",
-    x = "Longitude",
-    y = "Latitude"
-  ) +
-  coord_sf(
-    crs = crs(ghsl_raster), expand = FALSE)  
-
-ggsave(file.path("plots", "06-raster.png"), width = 6, height = 6)
-
-## ---
-
-town_name <- "Knokke-Heist, Belgium"
-town_shp <- getbb(town_name, format_out = "sf_polygon")
-st_crs(town_shp) <- "EPSG:4326"
-
-town_name_2 <- "Oostende, Belgium"
-town_shp_2 <- getbb(town_name_2, format_out = "sf_polygon")
-st_crs(town_shp_2) <- "EPSG:4326"
-
-# Combine the town shapes
-town_shp_combined <- st_union(town_shp, town_shp_2)
-
-mask_sf <- st_transform(town_shp_combined, crs = st_crs(ghsl_raster))
-
-# Convert sf object to a SpatVector
-mask_vect <- vect(mask_sf)
-
-# Mask the cropped raster with the polygon to limit to the precise shape
-masked_raster <- mask(ghsl_cropped, mask_vect)
-
-ghsl_masked_df <- as.data.frame(masked_raster, xy = TRUE, na.rm = TRUE) 
-
-ghsl_masked_df |> 
-  mutate(height = height) |> 
-  filter(height > 0) |> 
-  ggplot() +
-  annotation_map_tile(type = "cartolight", zoom = 11) +
-  geom_tile(
-    aes(x, y, fill = height),
-    alpha = 0.7) +
-  scale_fill_viridis_c(
-    option = "viridis", na.value = "grey", transform = "pseudo_log"
-  ) +
-  theme_void() +
-  labs(
-    fill = "Height (meters)",
-    x = "Longitude",
-    y = "Latitude"
-  ) +
-  coord_sf(crs = crs(ghsl_raster))  
-
+  coord_sf(crs = raster_crs, expand = FALSE) +
+  guides(fill = guide_colorbar(title.position = "top")) +
+  theme_void(base_family = "Fira Sans") +
+  theme(
+    plot.background = element_rect(color = "white", fill = "white"),
+    legend.position = "inside",
+    legend.position.inside = c(0.15, 0.35),
+    legend.direction = "horizontal",
+    legend.key.width = unit(8, "mm"),
+    legend.key.height = unit(3, "mm"),
+    plot.margin = margin(t = 0, l = 0, r = 0, b = 3),
+    plot.caption = element_textbox(
+      width = 1, lineheight = 1.2, margin = margin(t = 5, l = 4, r = 4, b = 2))
+  )
+ggsave(file.path("plots", "06-raster.png"), width = 5.6, height = 6, dpi = 600,
+       scale = 1.2)
