@@ -1,7 +1,6 @@
 library(tidyverse)
 library(terra)
 library(sf)
-library(ggspatial)
 library(ggtext)
 
 data_path <- file.path("data", "HDX")
@@ -23,7 +22,7 @@ downsample_raster <- function(raster, factor = 25) {
 raster_downsampled_pop_full <- downsample_raster(rasters[[1]])
 raster_downsampled_pop_group <- downsample_raster(rasters[[4]])
 
-# Combine by division
+# Combine the rasters: calculate the share of the subgroup 
 raster_downsampled_combined <- raster_downsampled_pop_group / raster_downsampled_pop_full
 
 # Transform to a data.frame for ggplot
@@ -33,6 +32,7 @@ raster_downsampled_combined_df <- as.data.frame(
   rename(population = `Population Count`) |> 
   mutate(population = replace_na(population, 0))
 
+# Set breaks and labels for the contours
 contour_breaks <- seq(
   floor(min(raster_downsampled_combined_df$population) * 100) / 100, 
   ceiling(max(raster_downsampled_combined_df$population) * 100) / 100, 0.02)
@@ -48,7 +48,6 @@ p <- raster_downsampled_combined_df |>
   geom_contour_filled(
     aes(x, y, z = population),
     breaks = contour_breaks) +
-  # scale_fill_viridis_d(labels = contour_labels) +
   scale_fill_brewer(labels = contour_labels, direction = -1) +
   coord_sf(crs = raster_crs) +
   guides(fill = guide_legend(
@@ -69,7 +68,6 @@ p <- raster_downsampled_combined_df |>
     plot.background = element_rect(color = "transparent", fill = "#121212"),
     text = element_text(color = "#FCFCFC"),
     legend.position = "bottom",
-    # legend.position.inside = c(1.15, 0.25),
     legend.key.width = unit(3.5, "mm"),
     legend.key.height = unit(3.5, "mm"),
     legend.title = element_markdown(size = 7, lineheight = 1.1),
