@@ -11,10 +11,10 @@ data_url <- "https://www.offenedaten-koeln.de/node/43214/download"
 df <- read_csv2(data_url)
 
 # First name position 1 only
-
 firstnames <- df |> 
   arrange(-anzahl) |> 
-  filter(position == 1) 
+  filter(position == 1)
+
 quantile(firstnames$anzahl, 
          probs = c(0, 0.25, 0.5, 0.75, 0.8, 0.9, 0.95,  0.97, 0.99, 1))
 
