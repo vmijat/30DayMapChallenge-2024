@@ -1,4 +1,5 @@
 library(tidyverse)
+library(ggtext)
 library(sf)
 library(countrycode)
 
@@ -27,21 +28,30 @@ world <- world |>
   bind_rows(greenland)
 
 # Projection centered around the Pacific
-crs <- "+proj=robin +lon_0=150"
+crs <- "+proj=eqearth +lon_0=150"
 world <- world |> 
-  # filter(sovereignt == admin) |> 
   st_transform(crs = crs)
 
 ggplot(world) + geom_sf()
 
 # Calculate the bounding boxes
-geometries <- world$geometry
-bboxes <- map(geometries, st_bbox) |> 
+bboxes <- map(world$geometry, st_bbox) |>
   map_dfr(function(x) {
-      df <- matrix(x, ncol = 4) |> as.data.frame()
-      colnames(df) <- c("xmin", "ymin", "xmax", "ymax")
-      df
-    }) 
+    coordinates <- matrix(
+      c(
+        x["xmin"], x["ymin"],
+        x["xmin"], x["ymax"],
+        x["xmax"], x["ymax"],
+        x["xmax"], x["ymin"],
+        x["xmin"], x["ymin"]
+      ),
+      ncol = 2,
+      byrow = TRUE
+    )
+    sf_polygon <- st_polygon(list(coordinates))
+    st_as_sf(data.frame(geometry = st_sfc(sf_polygon)))
+  })
+st_crs(bboxes) <- crs
 
 bboxes <- bboxes |> 
   mutate(
@@ -55,59 +65,70 @@ bboxes <- bboxes |>
       "French Guayana" ~ "Americas", 
       "Kosovo" ~ "Europe",
       "Somaliland" ~ "Africa",
-      .default = continent),
-    xmin = xmin + ifelse(country_name == "Greenland", 5e6, 0),
-    xmax = xmax + ifelse(country_name == "Greenland", 5e6, 0)
-  ) |> 
-  arrange(xmax * ymax)
-  
+      .default = continent)) 
 
-# Which bboxes have the largest x extent?
-bboxes |> 
-  mutate(x_range = xmax - xmin) |> 
-  arrange(-x_range) |> 
-  select(country_name, x_range, xmin, xmax) |> 
-  head(10)
+# Modify the bounding box for Greenland
+greenland_bbox <- bboxes %>% filter(country_name == "Greenland")
+other_bboxes <- bboxes %>% filter(country_name != "Greenland")
 
-p <- bboxes |> 
+st_bbox(greenland_bbox)
+
+shift_greenland_x <- 18 * 62000
+greenland_bbox$geometry <- st_sfc(st_polygon(list(matrix(
+  c(
+     7117490 + shift_greenland_x, 6927197,
+     7117490 + shift_greenland_x, 8316222,
+    11023656 + shift_greenland_x, 8316222,
+    11023656 + shift_greenland_x, 6927197,
+     7117490 + shift_greenland_x, 6927197
+  ),
+  ncol = 2,
+  byrow = TRUE
+))),
+  crs = crs
+)
+
+combined_bboxes <- bind_rows(other_bboxes, greenland_bbox) |> 
+  st_as_sf(sf_column_name = "geometry")
+
+
+# Base plot
+p <- combined_bboxes |> 
   ggplot() +
-  coord_sf(crs = crs) +
   theme_void() +
   theme(
-    plot.background = element_rect(color = "#F5F5F5", fill = "#F5F5F5")
+    plot.background = element_rect(color = "#F9F9F9", fill = "#F9F9F9")
   )
 
 # Different colors
-p + geom_rect(
-  aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, 
-      color = country_name, fill = stage(country_name, after_scale = alpha(fill, 0.1))),
+p + geom_sf(
+  aes(color = country_name, fill = stage(country_name, after_scale = alpha(fill, 0.1))),
   linewidth = 0.1, show.legend = FALSE)
 
 # Monochrome
-p + geom_rect(
-  aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+p + geom_sf(
   color = "#222222", fill = "#99999911",
   linewidth = 0.1, show.legend = FALSE)
 
-# Mondrian
-set.seed(123)
+# Mondrian style
+set.seed(8)
 mondrian_colors <- sample(
   c("#FF1B1C", "#FEFF1C", "#1B1BFF", "#FFFFFF", "black"), 
-  size = nrow(bboxes), replace = TRUE)
+  size = nrow(bboxes), replace = TRUE,
+  prob = c(0.3, 0.25, 0.25, 0.15, 0.05))
 
-p + geom_rect(
-  aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,
-      fill = stage(mondrian_colors, after_scale = alpha(fill, 0.5))),
+p + geom_sf(
+  aes(fill = stage(mondrian_colors, after_scale = alpha(fill, 0.5))),
   color = "black",
   linewidth = 0.3, show.legend = FALSE) +
   scale_fill_identity() +
   labs(
-    title = toupper("A World Map in the Style of Piet Mondrian"),
+    title = "A WORLD MAP<br>
+    <span style='font-size: 10pt'>IN THE STYLE OF PIET MONDRIAN</span>",
     caption = "Source: Natural Earth. Visualization: Ansgar Wolsing" 
   ) +
   theme(
-    plot.title = element_text(family = "Cabin Condensed SemiBold", size = 16, hjust = 0.5),
+    plot.title = element_markdown(family = "Cabin Condensed SemiBold", size = 16, hjust = 0.5),
     plot.caption = element_text(family = "Cabin Condensed", size = 6, hjust = 0.5)
   )
-
 ggsave(file.path("plots", "14-a-world-map.png"), width = 6, height = 4)
