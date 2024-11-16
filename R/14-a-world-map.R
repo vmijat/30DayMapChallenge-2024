@@ -71,7 +71,7 @@ bboxes |>
 
 p <- bboxes |> 
   ggplot() +
-  coord_sf() +
+  coord_sf(crs = crs) +
   theme_void() +
   theme(
     plot.background = element_rect(color = "#F5F5F5", fill = "#F5F5F5")
@@ -97,7 +97,7 @@ mondrian_colors <- sample(
 
 p + geom_rect(
   aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,
-      fill = stage(mondrian_colors, after_scale = alpha(fill, 0.3))),
+      fill = stage(mondrian_colors, after_scale = alpha(fill, 0.5))),
   color = "black",
   linewidth = 0.3, show.legend = FALSE) +
   scale_fill_identity() +
@@ -107,7 +107,7 @@ p + geom_rect(
   ) +
   theme(
     plot.title = element_text(family = "Cabin Condensed SemiBold", size = 16, hjust = 0.5),
-    plot.caption = element_text(family = "Cabin Condensed", size = 7, hjust = 0.5)
+    plot.caption = element_text(family = "Cabin Condensed", size = 6, hjust = 0.5)
   )
 
 ggsave(file.path("plots", "14-a-world-map.png"), width = 6, height = 4)
