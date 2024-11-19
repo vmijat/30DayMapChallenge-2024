@@ -58,20 +58,29 @@ grid_countries_letters <- grid_countries |>
 
 # Font colors
 set.seed(42)
-country_colors <- sample(c("black", "grey70", "grey25", "grey50"), size = 27, replace = TRUE)
+country_colors <- sample(c("black", "grey20", "grey40", "grey60", "grey80"), size = 27, replace = TRUE)
 names(country_colors) <- unique(grid_countries_letters$NAME_ENGL)
-
 
 ggplot(grid_countries_letters) + 
   geom_sf_text(
     aes(
       label = toupper(letter),
       color = NAME_ENGL), 
-    size = 2, family = "Source Sans Pro SemiBold", show.legend = FALSE) +
+    size = 2, family = "Source Sans Pro", fontface = "bold", show.legend = FALSE) +
+  annotate(
+    "text",
+    x = 2658293, y = 5285270,
+    label = "EU 27 Letters",
+    family = "Source Sans Pro", fontface = "bold", size = 10, hjust = 0
+  ) +
   scale_color_manual(values = country_colors) +
-  theme_void() +
+  labs(
+    caption = "Source: GISCO. Visualization: Ansgar Wolsing"
+  ) +
+  theme_void(base_family = "Source Sans Pro") +
   theme(
-    plot.background = element_rect(color = "#FAFAFA", fill = "#FAFAFA")
+    plot.background = element_rect(color = "#FAFAFA", fill = "#FAFAFA"),
+    plot.caption = element_text(size = 6),
+    plot.margin = margin(rep(4, 4))
   )
 ggsave(file.path("plots", "19-typography.png"), width = 6, height = 6)
-
