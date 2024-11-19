@@ -1,40 +1,77 @@
+library(tidyverse)
 library(sf)
-library(ggplot2)
 library(ggtext)
 library(giscoR)
 
-# Load the map data for the contiguous United States
-us <- ne_states(country = "United States of America", returnclass = "sf") 
-# us <- giscoR::gisco_get_countries(
-#   country = "United States of America", year = "2020", resolution = "60") 
-contiguous_us <- us[!us$name %in% c("Hawaii", "Alaska"), ]
-contiguous_us <- st_transform(contiguous_us, crs = "EPSG:4269")
-crs <- st_crs(contiguous_us)
+europe_shp <- giscoR::gisco_get_countries(year = "2020", region = "Europe", epsg = "3035")
+cyprus_shp <- giscoR::gisco_get_countries(year = "2020", country = "Cyprus", epsg = "3035")
+europe_shp <- bind_rows(europe_shp, cyprus_shp)
 
-# Generate sample points within the shape
-set.seed(42)
-points <- st_sample(contiguous_us, size = 1000, type = "random")
+# EU27 country codes
+eu_iso3 <- c(
+  "AUT", "BEL", "BGR", "HRV", "CYP", "CZE", "DNK", "EST", "FIN", "FRA",
+  "DEU", "GRC", "HUN", "IRL", "ITA", "LVA", "LTU", "LUX", "MLT", "NLD",
+  "POL", "PRT", "ROU", "SVK", "SVN", "ESP", "SWE"
+)
 
-points <- st_make_grid(contiguous_us, n = c(33, 33)) |> 
+eu27_shp <- europe_shp |> 
+  filter(ISO3_CODE %in% eu_iso3)
+unique(eu27_shp$NAME_ENGL)[order(unique(eu27_shp$NAME_ENGL))]
+nrow(eu27_shp)
+
+# Crop to mainland
+st_bbox(eu27_shp)
+crs <- "EPSG:3035"
+mainland_bbox <- st_bbox(c(xmin = 1.9e6, xmax = unname(st_bbox(eu27_shp)$xmax),
+          ymin = 1.6e6, ymax = unname(st_bbox(eu27_shp)$xmax)), crs = crs)
+eu27_shp_cropped <- st_crop(eu27_shp, mainland_bbox)
+ggplot(eu27_shp_cropped) + geom_sf()
+
+# Create a grid
+grid <- st_make_grid(eu27_shp_cropped, n = c(90, 90)) |> 
   st_centroid() |>
   st_as_sf() |> 
-  st_filter(contiguous_us, .predicate = st_intersects)
+  st_filter(eu27_shp_cropped, .predicate = st_intersects)
 
-# Convert points to a data frame
-points_df <- as.data.frame(st_coordinates(points))
-points_df$text <- sample(c("U", "S", "A"), nrow(points_df), replace = TRUE)
+# Join grid with country shapes
+grid_countries <- grid |> 
+  st_join(eu27_shp_cropped, join = st_intersects)
+
+ggplot(grid_countries) + 
+  geom_sf(
+    aes(color = NAME_ENGL), size = 0.001, show.legend = FALSE)
+
+# Spread the letters that make up the country names across the countries' part 
+# of the grid
+grid_countries_letters <- grid_countries |> 
+  group_split(NAME_ENGL, .keep = TRUE) |> 
+  map(function(x) {
+    x |> 
+    mutate(
+      row = row_number(),
+      row_rest = (row_number() - 1) %% str_length(NAME_ENGL) + 1,
+      foo = NAME_ENGL,
+      letter = unlist(str_split(foo, pattern = ""))[row_rest]
+    )
+  }) |> 
+  bind_rows()
+
+# Font colors
+set.seed(42)
+country_colors <- sample(c("black", "grey70", "grey25", "grey50"), size = 27, replace = TRUE)
+names(country_colors) <- unique(grid_countries_letters$NAME_ENGL)
 
 
-points_df |> 
-  ggplot() +
-  geom_text(
-    aes(x = X, y = Y, label = text, color = text),
-    size = 2, family = "Fira Sans SemiBold", show.legend = FALSE) + 
-  scale_color_manual(values = c("red", "blue", "white")) +
-  coord_sf(crs = crs) +
-  theme_void(base_family = "Fira Sans") +
+ggplot(grid_countries_letters) + 
+  geom_sf_text(
+    aes(
+      label = toupper(letter),
+      color = NAME_ENGL), 
+    size = 2, family = "Source Sans Pro SemiBold", show.legend = FALSE) +
+  scale_color_manual(values = country_colors) +
+  theme_void() +
   theme(
-    plot.background = element_rect(color = "grey40", fill = "grey40")
+    plot.background = element_rect(color = "#FAFAFA", fill = "#FAFAFA")
   )
-ggsave(file.path("plots", "19-typography.png"), width = 5, height = 4)
+ggsave(file.path("plots", "19-typography.png"), width = 6, height = 6)
 
