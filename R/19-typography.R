@@ -23,9 +23,11 @@ nrow(eu27_shp)
 st_bbox(eu27_shp)
 crs <- "EPSG:3035"
 mainland_bbox <- st_bbox(c(xmin = 1.9e6, xmax = unname(st_bbox(eu27_shp)$xmax),
-          ymin = 1.6e6, ymax = unname(st_bbox(eu27_shp)$xmax)), crs = crs)
+          ymin = 1.45e6, ymax = unname(st_bbox(eu27_shp)$xmax)), crs = crs)
 eu27_shp_cropped <- st_crop(eu27_shp, mainland_bbox)
-ggplot(eu27_shp_cropped) + geom_sf()
+ggplot(eu27_shp_cropped) + 
+  geom_sf() +
+  geom_sf_label(aes(label = CNTR_ID))
 
 # Create a grid
 grid <- st_make_grid(eu27_shp_cropped, n = c(90, 90)) |> 
