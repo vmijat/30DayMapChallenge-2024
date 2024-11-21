@@ -11,8 +11,8 @@ data_path <- file.path("data", "HDX")
 raster_paths <- file.path(
   data_path, c("population_deu_2019-07-01.tif", "DEU_elderly_60_plus.tif", 
                "DEU_children_under_five.tif", "DEU_youth_15_24.tif"))
-rasters <- map(raster_paths, rast) 
-raster_crs <- crs(rasters[[1]])
+rasters <- map(raster_paths, terra::rast) 
+raster_crs <- terra::crs(rasters[[1]])
 
 
 # Downsample the rasters
