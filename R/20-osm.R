@@ -4,6 +4,7 @@ library(sf)
 library(osrm)
 library(terra)
 library(ggtext)
+library(ggspatial)
 
 city_name <- "Cologne, Germany"
 
@@ -90,9 +91,9 @@ buildings_combined_filtered <- buildings_combined |>
   st_filter(shp)
 
 
-isochrone_breaks <- c(0, 2, 5, 10, 15, 30, Inf)
+isochrone_breaks <- c(0, 3, 5, 10, 15, Inf)
 isochrone_labels <- c(
-  "Less than 2", "2-5", "5-10", "10-15", "15-30", "More than 30"
+  "Less than 3", "3-5", "5-10", "10-15", "More than 15"
 )
 
 
@@ -110,29 +111,40 @@ buildings_with_isochrones <- st_join(buildings_combined_filtered,
                                      join = st_nearest_feature)
 
 
-bg_color <- "#232323"
 p <- ggplot() +
   ggfx::with_shadow(
-    geom_sf(data = shp, fill = bg_color, color = bg_color, linewidth = 1),
-    colour = "#585858", x_offset = 7, y_offset = 6
+    geom_sf(data = shp, fill = "black", color = "black", linewidth = 1),
+    colour = "#222", x_offset = 10, y_offset = 8
   ) +
   geom_sf(
     data = buildings_with_isochrones,
     aes(fill = isochrone_cat),
-    linewidth = 0
+    linewidth = 0.01, color = "white"
   ) +
-  geom_sf(data = hospitals_filtered, color = "white", fill = "#636363", 
-          shape = 21, size = 1) +
-  scale_fill_viridis_d(
-    option = "D", na.value = "grey", direction = -1, labels = isochrone_labels
+  geom_sf(
+    data = hospitals_filtered, 
+    aes(color = "Hospital"),
+    fill = "white", shape = 22, size = 1.5) +
+  annotation_scale(
+    location = "bl", width_hint = 0.15, height = unit(2, "mm"),
+    text_family = "Roboto"
+  ) +
+  scale_color_manual(values = c("black")) +
+  scale_fill_manual(
+    values =  scales::pal_viridis(
+      begin = 0.15, end = 1, option = "D", direction = -1)(length(isochrone_breaks - 1)),
+    labels = isochrone_labels
   ) +
   guides(fill = guide_legend(
-    title = "Travel time by car (in minutes)", title.position = "top", nrow = 2)) +
+    title = "Travel time by car (in minutes)", title.position = "top", nrow = 2,
+    direction = "horizontal", order = 1)) +
+  guides(color = guide_legend(title = NULL, override.aes = list("size" = 3),
+                              order = 2)) +
   labs(
     title = "How long does it take to the next hospital in Cologne?",
     subtitle = "Each dot on the map shows the location of a hospital.
-    The colour of a building indicates how long it takes to get to the nearest 
-    hospital by car.",
+    The colour of a building indicates how accessible the hospitals are by car, 
+    assuming average conditions.",
     caption = "Source: OpenStreetMap contributors. Visualization: Ansgar Wolsing"
   ) +
   theme_void(base_family = "Roboto") +
@@ -140,19 +152,13 @@ p <- ggplot() +
     plot.background = element_rect(
       color = "#B6B6B6", fill = "#B6B6B6"),
       legend.position = "inside",
-  legend.position.inside = c(0.75, 0.9),
+  legend.position.inside = c(0.75, 0.875),
   legend.direction = "horizontal",
   text = element_text(color = "black"),
-  plot.title = element_markdown(face = "bold", size = 14),
+  plot.title = element_markdown(face = "bold", size = 16),
   plot.title.position = "plot",
   plot.subtitle = element_textbox(width = 1, lineheight = 1.15),
   plot.caption = element_markdown(),
   plot.margin = margin(rep(4, 4))
 )
-ggsave(file.path("plots", "20-osm.png"), width = 6.5, height = 7.5, dpi = 500)
-
-
-ggplot() +
-  geom_sf(data = shp) +
-  geom_sf(data = hospitals_filtered) +
-  geom_sf_text(data = hospitals_filtered, aes(label = name), size = 2, hjust = 0)
+ggsave(file.path("plots", "20-osm.png"), width = 6.5, height = 7.5, dpi = 600)
