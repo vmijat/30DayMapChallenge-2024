@@ -1,0 +1,3 @@
+++ Prompt ++
+
+You are an experienced 17th-century cartographer. Create a detailed map of New York City, as it might have appeared during the 1600s, using the style and conventions of the time. Include significant landmarks such as rivers, forests, and settlements, depicted with hand-drawn coastlines, ornate map borders, and a decorative compass rose. Use old-world fonts for labels and embellish the map with period-appropriate illustrations like sailing ships or mythical sea creatures in the waterways.
