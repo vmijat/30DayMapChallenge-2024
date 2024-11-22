@@ -25,7 +25,7 @@ p1 <- gisco_shp |>
   annotation_map_tile(
     type = "osm", zoom = 8, alpha = 1, interpolate = TRUE, cachedir = tempdir()) +
   geom_sf(
-    aes(fill = stage(NAME_ENGL, after_scale = alpha(fill, 0.15))),
+    aes(fill = stage(NAME_ENGL, after_scale = alpha(fill, 0.2))),
     linewidth = 0, show.legend = FALSE) +
   annotate(
     "richtext",
@@ -56,7 +56,7 @@ p2 <- ne_shp |>
   annotation_map_tile(
     type = "osm", zoom = 8, alpha = 1, interpolate = TRUE, cachedir = tempdir()) +
   geom_sf(
-    aes(fill = stage(sovereignt, after_scale = alpha(fill, 0.15))),
+    aes(fill = stage(sovereignt, after_scale = alpha(fill, 0.2))),
     linewidth = 0, show.legend = FALSE) +
   annotate(
     "richtext",
@@ -82,8 +82,8 @@ p2 <- ne_shp |>
 
 p <- p1 / p2 +
   plot_annotation(
-    title = "Choosing a geospatial data provider matters",
-    subtitle = "How two major geospatial data providers differ in representing Crimea.",
+    title = "Choosing a geospatial dataset matters",
+    subtitle = "How two geospatial dataset differ in representing Crimea.",
     caption = "GISCO, Natural Earth, Open Street Map contributors. Visualization: Ansgar Wolsing"
   ) &
   theme(
