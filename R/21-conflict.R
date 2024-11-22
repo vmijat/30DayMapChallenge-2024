@@ -83,7 +83,7 @@ p2 <- ne_shp |>
 p <- p1 / p2 +
   plot_annotation(
     title = "Choosing a geospatial dataset matters",
-    subtitle = "How two geospatial dataset differ in representing Crimea.",
+    subtitle = "How two geospatial datasets differ in representing Crimea.",
     caption = "GISCO, Natural Earth, Open Street Map contributors. Visualization: Ansgar Wolsing"
   ) &
   theme(
