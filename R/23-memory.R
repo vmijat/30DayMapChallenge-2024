@@ -94,6 +94,7 @@ highlight_letters_in_grid <- function(x, city_name) {
     mutate(letter_count = n()) |>
     ungroup() |>
     filter(letter_count == max(letter_count)) |>
+    group_by(latitude) |> 
     arrange(latitude, row)  |>
     # Create an id for potential sequences of the city name
     mutate(
@@ -104,9 +105,10 @@ highlight_letters_in_grid <- function(x, city_name) {
             ~ all(letter[.x:(.x + length(city_name_vec) - 1)] == city_name_vec))
         )
     ) |>
+    ungroup() |> 
     filter(sequence_id == median(sequence_id, na.rm = TRUE)) |> 
     slice_head(n = length(city_name_vec)) |> 
-    transmute(x, letter, highlight = TRUE)
+    transmute(x, letter, sequence_id, latitude, highlight = TRUE)
 }
 
 highlight_name_sequences <- map2(grids_with_letters,
