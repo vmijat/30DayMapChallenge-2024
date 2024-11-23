@@ -117,24 +117,24 @@ highlight_name_sequences <- map2(grids_with_letters,
 
 
 city_letter_plot <- function(
-    x, highlight_letters, extent = c(xmin = -180, xmax = 180, ymin = -90, ymax = 90)) {
-  
-  # Determine the label.padding from the the range of the longitude dimension
-  print(extent$x_range)
-  label_padding <- extent$x_range / 10e3 * 0.33
+    x, 
+    highlight_letters, 
+    extent = c(xmin = -180, xmax = 180, ymin = -90, ymax = 90)) {
   
   x |> 
     ggplot() +
+    geom_sf(
+      data = highlight_letters,
+      size = 3.9, fill = "#000080", color = "transparent", shape = 22
+    ) +
     geom_sf_text(
       aes(label = toupper(letter)),
       size = 2.5, family = "Source Sans Pro", fontface = "bold", color = "#000080"
     ) +
-    geom_sf_label(
+    geom_sf_text(
       data = highlight_letters,
       aes(label = toupper(letter)),
-      size = 2.5, family = "Source Sans Pro", fontface = "bold", color = "white",
-      fill = "#000080", label.size = 0, label.r = unit(0, "mm"), 
-      label.padding = unit(label_padding, "mm")
+      size = 2.5, family = "Source Sans Pro", fontface = "bold", color = "white"
     ) +
     coord_sf(xlim = c(extent$xmin, extent$xmax),
              ylim = c(extent$ymin, extent$ymax)) +
