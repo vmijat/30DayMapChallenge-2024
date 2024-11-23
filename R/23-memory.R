@@ -4,20 +4,20 @@ library(osmdata)
 library(ggtext)
 library(patchwork)
 
-# City shapes for the places
 places <- c("Moers", "Duisburg", "Hannover", "Mannheim", "Düsseldorf", "Köln")
 
+# City shapes for the places
 places_shp <- map(
   paste(places, "Germany", sep = ", "),
   getbb, format_out = "sf_polygon", limit = 1)
 places_shp <- set_names(places_shp, places)
-# Manually fix Hannover 😅
+# Manually fix Hannover 😅 as OSM returns a multipolygon and an empty polygon in a list
 places_shp[["Hannover"]] <- places_shp[["Hannover"]]$multipolygon
 # Transform projection
 places_shp <- map(places_shp, st_transform, crs = "+proj=moll")
 
 
-# Create a grid
+# Create a grid for each city
 make_shaped_grid <- function(x) {
   st_make_grid(x, n = c(20, 20)) |> 
   st_centroid() |>
@@ -26,7 +26,6 @@ make_shaped_grid <- function(x) {
 }
 grids <- map(places_shp, make_shaped_grid)
 
-ggplot(grids[["Hannover"]]) + geom_sf()
 
 # Place the letters from the city names on the grid
 place_letters_on_grid <- function(x, city_name) {
@@ -37,20 +36,8 @@ place_letters_on_grid <- function(x, city_name) {
       letter = unlist(str_split(city_name, pattern = ""))[row_rest]
     )
 }
-
 grids_with_letters <- map2(grids, places, place_letters_on_grid)
 
-
-# Determine the max extents
-max_extents <- map(places_shp, st_bbox) |> 
-  map_dfr(function(x) {
-    c("x" = x$xmax - x$xmin, "y" = x$ymax - x$ymin)
-  }, .id = "city_name") |> 
-  summarize(
-    x_max_range = max(x.xmax),
-    y_max_range = max(y.ymax)
-  )
-max_extents
 
 # Create a 1:1 frame for each city based on its extent
 extents <- map(
@@ -115,7 +102,7 @@ highlight_name_sequences <- map2(grids_with_letters,
                                  places,
                                  highlight_letters_in_grid)
 
-
+# Create the maps 
 city_letter_plot <- function(
     x, 
     highlight_letters, 
@@ -145,8 +132,6 @@ city_letter_plot <- function(
       text = element_text(color = "#000080")
     )
 }
-
-
 maps <- pmap(list(grids_with_letters, highlight_name_sequences, extents), city_letter_plot)
 
 # Combine all plots using {patchwork}
