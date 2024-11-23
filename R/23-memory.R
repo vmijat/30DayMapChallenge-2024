@@ -153,7 +153,7 @@ maps <- pmap(list(grids_with_letters, highlight_name_sequences, extents), city_l
 wrap_plots(maps, ncol = ceiling(sqrt(length(maps)))) +
   plot_annotation(
     title = toupper("Cities I've Called Home"),
-    caption = "**Source:** OpenStreetMap contributors.
+    caption = "**Note:** City shapes not to scale. **Source:** OpenStreetMap contributors.
     **Visualization:** Ansgar Wolsing"
   ) & 
   theme(
