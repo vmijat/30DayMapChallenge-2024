@@ -53,7 +53,7 @@ max_extents <- map(places_shp, st_bbox) |>
 max_extents
 
 # Create a 1:1 frame for each city based on its extent
-plot_extents <- map(
+extents <- map(
   places_shp, 
   function(x) list("bbox" = st_bbox(x),
                    "centroid" = st_centroid(x))) |> 
@@ -80,7 +80,7 @@ plot_extents <- map(
     res
   }) |> 
   map(as.data.frame)
-plot_extents
+extents
 
 
 # Highlight the city name ------
@@ -119,6 +119,10 @@ highlight_name_sequences <- map2(grids_with_letters,
 city_letter_plot <- function(
     x, highlight_letters, extent = c(xmin = -180, xmax = 180, ymin = -90, ymax = 90)) {
   
+  # Determine the label.padding from the the range of the longitude dimension
+  print(extent$x_range)
+  label_padding <- extent$x_range / 10e3 * 0.33
+  
   x |> 
     ggplot() +
     geom_sf_text(
@@ -130,7 +134,7 @@ city_letter_plot <- function(
       aes(label = toupper(letter)),
       size = 2.5, family = "Source Sans Pro", fontface = "bold", color = "white",
       fill = "#000080", label.size = 0, label.r = unit(0, "mm"), 
-      label.padding = unit(0.33, "mm")
+      label.padding = unit(label_padding, "mm")
     ) +
     coord_sf(xlim = c(extent$xmin, extent$xmax),
              ylim = c(extent$ymin, extent$ymax)) +
@@ -143,7 +147,7 @@ city_letter_plot <- function(
 }
 
 
-maps <- pmap(list(grids_with_letters, highlight_name_sequences, plot_extents), city_letter_plot)
+maps <- pmap(list(grids_with_letters, highlight_name_sequences, extents), city_letter_plot)
 
 # Combine all plots using {patchwork}
 wrap_plots(maps, ncol = ceiling(sqrt(length(maps)))) +
