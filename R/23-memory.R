@@ -8,11 +8,25 @@ places <- c("Moers", "Duisburg", "Hannover", "Mannheim", "Düsseldorf", "Köln")
 
 # City shapes for the places
 places_shp <- map(
-  paste(places, "Germany", sep = ", "),
+  places,
   getbb, format_out = "sf_polygon", limit = 1)
 places_shp <- set_names(places_shp, places)
-# Manually fix Hannover 😅 as OSM returns a multipolygon and an empty polygon in a list
-places_shp[["Hannover"]] <- places_shp[["Hannover"]]$multipolygon
+
+# Fix when OSM provides a multipolygon and an empty polygon in a list
+make_valid_bbox <- function(x) {
+  if ("list" %in% class(x)) {
+    item_names <- names(x)
+    if ("multipolygon" %in% item_names && !is.null(x$multipolygon)) {
+      res <- x$multipolygon
+    } else if ("polygon" %in% item_names && !is.null(x$polygon)) {
+      res <- x$polygon
+    }
+    return(res)
+  }
+  x
+}
+places_shp <- map(places_shp, make_valid_bbox)
+
 # Transform projection
 places_shp <- map(places_shp, st_transform, crs = "+proj=moll")
 
