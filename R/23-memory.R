@@ -70,7 +70,7 @@ extents <- map(
 extents
 
 
-# Highlight the city name ------
+# Highlight the city name
 # Process the grid_with_letters to find rows with the most letters
 highlight_letters_in_grid <- function(x, city_name) {
   city_name_vec <- unlist(str_split(city_name, pattern = ""))
@@ -93,11 +93,11 @@ highlight_letters_in_grid <- function(x, city_name) {
         )
     ) |>
     ungroup() |> 
+    # Keep the sequence closest to the middle of the row
     filter(sequence_id == median(sequence_id, na.rm = TRUE)) |> 
     slice_head(n = length(city_name_vec)) |> 
     transmute(x, letter, sequence_id, latitude, highlight = TRUE)
 }
-
 highlight_name_sequences <- map2(grids_with_letters,
                                  places,
                                  highlight_letters_in_grid)
