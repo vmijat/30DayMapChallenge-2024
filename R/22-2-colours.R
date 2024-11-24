@@ -71,7 +71,7 @@ ggplot() +
   labs(
     title = "World Population Density",
     caption = "<span style='font-family:\"Cabin Condensed SemiBold\"'>Source:</span>
-    GHSL (GHS-POP, 2020), Freire et al. (2016). 
+    GHSL (GHS-POP, 2020), Schiavina et al. (2023). 
     <span style='font-family:\"Cabin Condensed SemiBold\"'>Visualization:</span>
     Ansgar Wolsing",
     size = "Inhabitants (millions)"
