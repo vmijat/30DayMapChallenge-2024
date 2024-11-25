@@ -14,7 +14,7 @@ table(metaIndex$var)
 
 # Select stations which have been active at least since min_date and are currently active
 min_date <- as_date("1961-01-01")
-active_stations_meta <- metaIndex %>%
+active_stations_meta <- metaIndex |>
   filter(von_datum <= min_date & var == "kl" & res == "monthly"
          & per == "recent" & hasfile)
 n_active_stations <- nrow(active_stations_meta)
@@ -23,51 +23,60 @@ n_active_stations <- nrow(active_stations_meta)
 station_ids <- unique(active_stations_meta$Stations_id)
 
 # Update only recent files // run if you have pulled the data at least once before
-update_only_recent <- FALSE
-if (update_only_recent) {
-  message("Updating recent files.")
-  data_urls <- map(
-    station_ids,
-    ~selectDWD(id = .x, res = "daily", var = "kl",
-               per = "r", # only recent
-               exactmatch = TRUE))
+dont_update_at_all <- TRUE
+update_only_recent <- TRUE
+
+if (!dont_update_at_all) {
+  if (update_only_recent) {
+    message("Updating recent files.")
+    data_urls <- map(
+      station_ids,
+      ~selectDWD(id = .x, res = "daily", var = "kl",
+                 per = "r", # only recent
+                 exactmatch = TRUE))
+  } else {
+    data_urls <- map(
+      station_ids,
+      ~selectDWD(id = .x, res = "daily", var = "kl", per = "hr",
+                 exactmatch = TRUE))
+    message("Updating historic and recent files.")
+  }
+  
+  # Download datasets, returning the local storage file name
+  files <- map(
+    data_urls,
+    ~dataDWD(.x, dir = file.path("data", "dwd-stations"), read = FALSE, force = TRUE))
+  
+  # Add the filepath of historical file (required if you only update the recent files)
+  files_hist_and_recent <- vector("list", length = length(files))
+  files_local_hist <- here("data", "dwd-stations",
+                           list.files(here("data", "dwd-stations"),
+                                      pattern = "daily_kl_historical"))
 } else {
-  data_urls <- map(
-    station_ids,
-    ~selectDWD(id = .x, res = "daily", var = "kl", per = "hr",
-               exactmatch = TRUE))
-  message("Updating historic and recent files.")
+  data_path <- file.path("data", "dwd-stations")
+  files_hist <- list.files(data_path, pattern = "_hist\\.zip")
+  files_recent <- list.files(data_path, pattern = "akt\\.zip")
+  files <- map2(
+    file.path(data_path, files_hist),
+    file.path(data_path, files_recent),
+    c)  
 }
 
-# Download datasets, returning the local storage file name
-files <- map(
-  data_urls,
-  ~dataDWD(.x, dir = file.path("data", "dwd-stations"), read = FALSE, force = TRUE))
-
-# Add the filepath of historical file (required if you only update the recent files)
-files_hist_and_recent <- vector("list", length = length(files))
-files_local_hist <- here("data", "dwd-stations",
-                         list.files(here("data", "dwd-stations"),
-                                    pattern = "daily_kl_historical"))
-
-# Read the files from the zip archives
 dfs <- map(files, readDWD, varnames = TRUE)
 
 combine_historical_and_recent <- function(x) {
   df <- bind_rows(x)
   colnames(df) <- tolower(colnames(df))
-  df <- df %>%
+  df <- df |>
     # there is a certain overlap between the two data sources,
     # remove those duplicates
-    group_by(mess_datum) %>%
-    slice_head(n = 1) %>%
-    ungroup() %>%
     transmute(
       stations_id,
       date = lubridate::as_date(as.character(mess_datum)),
-      tmk.lufttemperatur, txk.lufttemperatur_max, tnk.lufttemperatur_min
-    ) %>%
-    na.omit() %>%
+      tmk.lufttemperatur = na_if(tmk.lufttemperatur, -999)
+    ) |>
+    na.omit() |>
+    distinct() |> 
     mutate(month = month(date, label = TRUE),
            year = year(date),
            decade = year %/% 10 * 10)
@@ -78,13 +87,13 @@ combine_historical_and_recent <- function(x) {
 dfs_combined <- map(dfs, combine_historical_and_recent, .progress = TRUE)
 dfs_combined <- map(dfs_combined, function(x) filter(x, year <= 2024))
 dfs_combined <- set_names(dfs_combined, unique(active_stations_meta$Stationsname))
-# write_rds(dfs_combined, here("output", "dwd-stations-pre.rds"))
+write_rds(dfs_combined, here("output", "dwd-stations-pre.rds"))
 
 
 # Add metadata to weather data
 add_station_metadata <- function(x, metadata = active_stations_meta) {
-  x %>%
-    inner_join(metadata, by = join_by(stations_id == Stations_id)) %>%
+  x |>
+    inner_join(metadata, by = join_by(stations_id == Stations_id)) |>
     select(-c(res, var, per, hasfile))
 }
 
@@ -97,13 +106,13 @@ calculate_historical <- function(x, exclude_current_year = TRUE) {
     current_year <- year(Sys.Date())
     x <- x[x$year < current_year, ]
   }
-  x %>%
-    group_by(month) %>%
-    arrange(date, .by_group = TRUE) %>%
-    slice_max(txk.lufttemperatur_max, n = 1, with_ties = FALSE) %>%
-    ungroup() %>%
+  x |>
+    group_by(month) |>
+    arrange(date, .by_group = TRUE) |>
+    slice_max(tmk.lufttemperatur, n = 1, with_ties = FALSE) |>
+    ungroup() |>
     select(stations_id, year, month, date,
-           tmk.lufttemperatur, txk.lufttemperatur_max,
+           tmk.lufttemperatur,
            lat = geoBreite, lon = geoLaenge, station_elevation = Stationshoehe,
            stations_name = Stationsname)
 }
@@ -112,18 +121,18 @@ calculate_historical_average <- function(
     x,
     reference_period_start_year = 1961,
     reference_period_end_year = 1990) {
-  x %>%
-    filter(year >= reference_period_start_year & year <= reference_period_end_year) %>%
-    group_by(stations_id, Stationsname, geoBreite, geoLaenge, month) %>%
+  x |>
+    filter(year >= reference_period_start_year & year <= reference_period_end_year) |>
+    group_by(stations_id, Stationsname, geoBreite, geoLaenge, month) |>
     summarize(
       reference_avg_lufttemperatur = mean(tmk.lufttemperatur, na.rm = TRUE),
       reference_sd_lufttemperatur = sd(tmk.lufttemperatur, na.rm = TRUE),
       .groups = "drop"
-    ) %>%
+    ) |>
     mutate(
       reference_period_start_year = reference_period_start_year,
       reference_period_end_year = reference_period_end_year
-    ) %>%
+    ) |>
     select(stations_id, month,
            reference_avg_lufttemperatur, reference_sd_lufttemperatur,
            lat = geoBreite, lon = geoLaenge, stations_name = Stationsname,
@@ -132,11 +141,10 @@ calculate_historical_average <- function(
 
 calculate_recent <- function(x) {
   current_year <- 2024
-   x %>%
-    filter(year == current_year) %>%
-    group_by(stations_id, month) %>%
+   x |>
+    filter(year == current_year) |>
+    group_by(stations_id, month) |>
     summarize(
-      recent_max_txk.lufttemperatur_max = max(txk.lufttemperatur_max, na.rm = TRUE),
       recent_mean_tmk.lufttemperatur = mean(tmk.lufttemperatur),
       .groups = "drop")
 
@@ -152,26 +160,25 @@ dfs_recent <- map(dfs_prep, calculate_recent, .progress = TRUE)
 
 
 compare_recent_to_historical <- function(recent, historical) {
-  historical %>%
-    inner_join(recent, by = join_by(stations_id, month)) %>%
+  historical |>
+    inner_join(recent, by = join_by(stations_id, month)) |>
     mutate(
-      diff_recent_txk = recent_max_txk.lufttemperatur_max - txk.lufttemperatur_max,
       diff_recent_tmk = recent_mean_tmk.lufttemperatur - tmk.lufttemperatur
-    ) %>%
-    filter(diff_recent_txk > 0)
+    ) |>
+    filter(diff_recent_tmk > 0)
 }
 
 compare_recent_to_historical_avg <- function(recent, historical_avg,
                                              keep_recent_below_avg = TRUE) {
-  df <- historical_avg %>%
-    inner_join(recent, by = join_by(stations_id, month)) %>%
+  df <- historical_avg |>
+    inner_join(recent, by = join_by(stations_id, month)) |>
     mutate(
       diff_recent = recent_mean_tmk.lufttemperatur - reference_avg_lufttemperatur,
       diff_recent_as_sd = diff_recent / reference_sd_lufttemperatur,
     )
 
   if (!keep_recent_below_avg) {
-    df <- df %>%
+    df <- df |>
       filter(diff_recent > 0)
   }
 
@@ -180,16 +187,19 @@ compare_recent_to_historical_avg <- function(recent, historical_avg,
 
 dfs_comparison_avg <- map2(dfs_recent, dfs_historical_avg,
                            compare_recent_to_historical_avg, .progress = TRUE)
+write_rds(dfs_comparison_avg, file.path("output", "dwd-stations-comparison-avg.rds"))
 
 ## Shape Germany
 shp_de <- giscoR::gisco_get_countries(resolution = "20", country = "Germany")
-centroid_de <- sf::st_centroid(shp_de) %>%
+centroid_de <- sf::st_centroid(shp_de) |>
   sf::st_coordinates()
 
-dfs_comparison_avg %>%
-  bind_rows() %>%
-  mutate(month_name = factor(month.name[month], levels = month.name)) %>%
-  filter(!month %in% c("Nov", "Dec")) |>
+df_plot <- dfs_comparison_avg |>
+  bind_rows() |>
+  mutate(month_name = factor(month.name[month], levels = month.name)) |> 
+  filter(!month %in% c("Nov", "Dec")) 
+
+df_plot |>
   ggplot(aes(lon, lat)) +
   geom_sf(
     data = shp_de,
@@ -200,7 +210,7 @@ dfs_comparison_avg %>%
     aes(fill = diff_recent_as_sd),
     shape = 21, col = "grey20", stroke = 0.1, size = 1.75) +
   geom_richtext(
-    data = ~group_by(., month_name) %>%
+    data = ~group_by(., month_name) |>
       summarize(avg_reference = mean(reference_avg_lufttemperatur),
                 avg_recent = mean(recent_mean_tmk.lufttemperatur)),
     aes(x = centroid_de[, "X"] + 4, y = 45.65,
