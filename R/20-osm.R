@@ -35,7 +35,7 @@ grid_points <- st_make_grid(shp, cellsize = 0.001, what = "centers") %>%
 # Calculate walking times to the nearest supermarket for each grid point
 path_time_to_next_hospital <- file.path("data", "time-to-next-hospital.rds")
 
-if (TRUE) {
+if (FALSE) {
   chunk_size <- 100
   grid_length <- nrow(grid_points)
   chunk_start <- seq(1, grid_length, chunk_size)
@@ -78,10 +78,14 @@ raster_interpolation_masked <- mask(raster_interpolation, vect(shp))
 ## Retrieve building data 
 
 # Get buildings
-buildings <- opq(city_name) %>%
-  add_osm_feature(key = "building") |> 
-  osmdata_sf()
-write_rds(buildings, file.path("data", "osm-buildings-cgn.rds"), compress = "gz")
+if (FALSE) {
+  buildings <- opq(city_name) %>%
+    add_osm_feature(key = "building") |> 
+    osmdata_sf()
+  write_rds(buildings, file.path("data", "osm-buildings-cgn.rds"), compress = "gz")
+} else {
+  buildings <- read_rds(file.path("data", "osm-buildings-cgn.rds"))
+}
 
 # Filter to city shape
 buildings_combined <- bind_rows(buildings$osm_polygons, buildings$osm_multipolygons)
@@ -141,7 +145,7 @@ p <- ggplot() +
   guides(color = guide_legend(title = NULL, override.aes = list("size" = 3),
                               order = 2)) +
   labs(
-    title = "How long does it take to the next hospital in Cologne?",
+    title = "How long does it take to get to the next hospital in Cologne?",
     subtitle = "Each dot on the map shows the location of a hospital.
     The colour of a building indicates how accessible the hospitals are by car, 
     assuming average conditions.",
