@@ -9,8 +9,7 @@ data_path <- file.path("data", "HDX")
 #' https://data.humdata.org/dataset/germany-high-resolution-population-density-maps-demographic-estimates
 
 raster_paths <- file.path(
-  data_path, c("population_deu_2019-07-01.tif", "DEU_elderly_60_plus.tif", 
-               "DEU_children_under_five.tif", "DEU_youth_15_24.tif"))
+  data_path, c("population_deu_2019-07-01.tif", "DEU_youth_15_24.tif"))
 rasters <- map(raster_paths, terra::rast) 
 raster_crs <- terra::crs(rasters[[1]])
 
@@ -20,7 +19,7 @@ downsample_raster <- function(raster, factor = 25) {
   terra::aggregate(raster, fact = factor, fun = sum, na.rm = TRUE)
 }
 raster_downsampled_pop_full <- downsample_raster(rasters[[1]])
-raster_downsampled_pop_group <- downsample_raster(rasters[[4]])
+raster_downsampled_pop_group <- downsample_raster(rasters[[2]])
 
 # Combine the rasters: calculate the share of the subgroup 
 raster_downsampled_combined <- raster_downsampled_pop_group / raster_downsampled_pop_full
