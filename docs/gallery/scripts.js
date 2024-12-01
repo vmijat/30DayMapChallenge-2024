@@ -15,7 +15,7 @@
     // Render images in gallery using mapData
     mapData.forEach((map, index) => {
       const img = document.createElement('img');
-      img.src = map.src;
+      img.src = map.src + '?raw=true';
       img.alt = map.alt;
       img.dataset.index = index;
       img.classList.add('gallery-img');
@@ -24,7 +24,7 @@
       // Attach click event for lightbox view
       img.addEventListener('click', () => {
         lightbox.style.display = 'flex';
-        lightboxImg.src = map.src;
+        lightboxImg.src = map.src + '?raw=true';
         lightboxImg.alt = map.alt;
         lightboxTitle.innerText = map.title;
         lightboxDescription.innerHTML = map.description;
@@ -67,7 +67,7 @@
   
     function updateLightbox(index) {
       const map = mapData[index];
-      lightboxImg.src = map.src;
+      lightboxImg.src = map.src + '?raw=true';
       lightboxImg.alt = map.alt;
       lightboxTitle.innerText = map.title;
       lightboxDescription.innerText = map.description;
