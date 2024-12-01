@@ -1,0 +1,62 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="styles.css">
+  
+  <title>#30DayMapChallenge 2024 - Map Gallery</title>
+</head>
+<body>
+  <header>
+    <h1>#30DayMapChallenge 2024</h1>
+    <div class="decorative-circle">2024</div>
+</header>  
+  <div class="main-text">
+    <p>This is a collection of maps I created during the #30DayMapChallenge in November 2024.</p>
+        
+    <p>The challenge encourages map enthusiasts to create and share a new map every day, following a specific prompt for each day. It is an exciting opportunity to learn new techniques, experiment with data visualization, and join a vibrant community of cartographers and data enthusiasts.
+    </p>
+    <p>
+       The challenge was founded and has been organized since by Topi Tjukanov. Visit his website for the challenge: <a href="https://30daymapchallenge.com/">30daymapchallenge.com</a>
+    </p>
+    <p>Click on each map to find out more details. The tools used are listed for each map.
+        You can find the code for the maps I created with R in <a href="https://github.com/bydata/30DayMapChallenge-2024">this Github repo</a>.
+    </p>
+
+  </div>
+  
+  <div class="gallery" id="gallery">
+    <!-- Images will be rendered here dynamically -->
+  </div>
+
+    <!-- Lightbox Modal -->
+    <div class="lightbox" id="lightbox">
+        <button class="lightbox-arrow left-arrow" id="prev-btn">&#8249;</button>
+        <span class="close">&times;</span>
+        <img class="lightbox-content" id="lightbox-img" src="" alt="Map Image">
+        <div class="lightbox-title" id="lightbox-title"></div>
+        <div class="tools-used" id="tools-used">
+            <!-- Tools will be populated here dynamically -->
+        </div>
+        <div class="lightbox-description" id="lightbox-description"></div>
+        <button class="lightbox-arrow right-arrow" id="next-btn">&#8250;</button>
+      </div>
+      
+
+
+      <script src="mapData.js"></script>
+      <script src="scripts.js"></script>
+  
+  <div class="social-buttons">
+    <a href="https://bsky.app/profile/ansgarw.bsky.social" target="_blank">
+      <img src="images/bluesky-logo.png" alt="Bluesky" />
+    </a>
+    <a href="https://www.linkedin.com/in/ansgar-wolsing/" target="_blank">
+      <img src="images/linkedin-logo.png" alt="LinkedIn" />
+    </a>
+  </div>
+
+</body>
+</html>
