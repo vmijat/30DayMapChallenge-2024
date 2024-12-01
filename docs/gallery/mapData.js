@@ -39,7 +39,7 @@ const mapData = [
         },
     },
     {
-        src: 'maps/04-hexagons.gif',
+        src: 'https://github.com/bydata/30DayMapChallenge-2024/blob/main/plots/04-hexagons.gif?raw=true',
         title: 'Day 04: Hexagons',
         alt: 'An animated map of the congressional districts of the U.S. that morphs a choropleth map into a hexagonal cartogram. It reveals that the choropleth map emphasizes large, but sparsely populated rural areas.',
         description: 'Land does not vote. 🗳️ With the U.S. Presidential Election just one day away, this animation illustrates the political landscape by showing which party won each congressional district in the 2022 House of Representatives election. The animation begins with a traditional choropleth map, displaying each congressional district by its actual geographical boundaries. However, to avoid visual distortion caused by larger rural districts dominating the view, the map then transitions to a hexagonal cartogram. In this format, each district is represented by five equally-sized hexagons, ensuring that each congressional seat is given equal visual weight. This transformation allows viewers to more accurately gauge the proportional seat distribution between parties, which can be skewed in traditional maps by large, sparsely populated areas that occupy more space. The hexagon map has been made available by Daily Kos.',
