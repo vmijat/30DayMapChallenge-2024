@@ -78,8 +78,7 @@ combine_historical_and_recent <- function(x) {
     na.omit() |>
     distinct() |> 
     mutate(month = month(date, label = TRUE),
-           year = year(date),
-           decade = year %/% 10 * 10)
+           year = year(date))
   df
 }
 
@@ -223,7 +222,7 @@ df_plot |>
     "Blue-Red 2", breaks = seq(-3, 3, 1),
     labels = function(x) ifelse(x > 0, paste0("+", x), x)) +
   coord_sf(ylim = c(45.65, NA)) +
-  facet_wrap(vars(month_name), labeller = as_labeller(toupper)) +
+  facet_wrap(vars(month_name), labeller = as_labeller(toupper), nrow = 2) +
   guides(fill = guide_colorbar(title.position = "top")) +
   labs(
     title = "2024 so far has been warmer in most places in Germany",
@@ -240,19 +239,18 @@ df_plot |>
   ) +
   theme_void(base_family = "Source Sans Pro") +
   theme(
-    plot.background = element_rect(color = "grey96", fill = "grey96"),
+    plot.background = element_rect(color = "#FBFBFB", fill = "#FBFBFB"),
     plot.margin = margin(rep(6, 4)),
-    plot.title = element_text(face = "bold", size = 20, hjust = 0.5),
+    plot.title = element_text(face = "bold", size = 20, hjust = 0),
     plot.subtitle = element_textbox(
       width = 1.0, hjust = 0.5, halign = 0, lineheight = 1,
       margin = margin(t = 8, b = 20)),
     legend.direction = "horizontal",
-    legend.position = "inside",
-    legend.position.inside = c(0.77, 0.13),
-    legend.key.height = unit(2, "mm"),
-    legend.key.width = unit(12, "mm"),
+    legend.position = "bottom",
+    legend.key.width = unit(14, "mm"),
+    legend.key.height = unit(3, "mm"),
     legend.title = element_markdown(),
     strip.text = element_text(family = "Source Sans Pro Semibold", size = 11,
                               color = "grey40")
   )
-ggsave(file.path("plots", "25-heat.png"), width = 5, height = 5/7 * 10, scale = 7/5)
+ggsave(file.path("plots", "25-heat.png"), width = 6, height = 5, scale = 1.5)
