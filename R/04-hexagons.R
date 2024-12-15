@@ -4,6 +4,7 @@ library(sf)
 library(tigris)
 library(gganimate)
 
+
 #' Daily Kos Hexmap for the 2022 congressional districts
 #' Download manually via https://docs.google.com/spreadsheets/d/13XkF59JKzvw4SeSq5mbgIFrJfYjK4amg9JoQE5e9grQ/edit?gid=1250379179#gid=1250379179
 hexmap_shp <- st_read(file.path("data", "HexCDv30wm", "HexCDv30wm.shp"))
